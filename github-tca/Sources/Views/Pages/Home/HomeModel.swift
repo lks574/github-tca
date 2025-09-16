@@ -65,3 +65,74 @@ extension [HomeMenuItem] {
     )
   ]
 }
+
+// MARK: - Quick Access Item Model
+struct QuickAccessItem: Equatable, Identifiable {
+  let id = UUID()
+  let icon: String
+  let iconColor: Color
+  let title: String
+  let subtitle: String
+}
+
+
+struct RecentItem: Equatable, Identifiable {
+  let id = UUID()
+  let title: String
+  let subtitle: String
+  let type: RecentItemType
+
+  enum RecentItemType {
+    case issue
+    case pullRequest
+    case repository
+    case discussion
+  }
+
+  var icon: String {
+    switch type {
+    case .issue:
+      return "exclamationmark.circle"
+    case .pullRequest:
+      return "arrow.triangle.merge"
+    case .repository:
+      return "folder"
+    case .discussion:
+      return "bubble.left.and.bubble.right"
+    }
+  }
+
+  var iconColor: Color {
+    switch type {
+    case .issue:
+      return .githubGreen
+    case .pullRequest:
+      return .githubBlue
+    case .repository:
+      return .githubSecondaryText
+    case .discussion:
+      return .githubPurple
+    }
+  }
+}
+
+extension [QuickAccessItem] {
+  static let `default`: Self = [
+    QuickAccessItem(
+      icon: "bolt.fill",
+      iconColor: .githubBlue,
+      title: "빠른 액세스",
+      subtitle: "탭 한 번에, 필요한 항목 이용 가능"
+    )
+  ]
+}
+
+extension [RecentItem] {
+  static let `default`: Self = [
+    RecentItem(
+      title: "최근에 다른 Issue 및 Pull Request가 여기",
+      subtitle: "표시됩니다.",
+      type: .issue
+    )
+  ]
+}

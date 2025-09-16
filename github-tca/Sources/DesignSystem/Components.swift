@@ -3,11 +3,11 @@ import SwiftUI
 // MARK: - GitHub 스타일 카드 컴포넌트
 struct GitHubCard<Content: View>: View {
   let content: Content
-  
+
   init(@ViewBuilder content: () -> Content) {
     self.content = content()
   }
-  
+
   var body: some View {
     content
       .padding(GitHubSpacing.cardPadding)
@@ -22,9 +22,9 @@ struct GitHubButton: View {
   let style: GitHubButtonStyle
   let size: ButtonSize
   let action: () async -> Void
-  
+
   @State private var isLoading = false
-  
+
   init(
     _ title: String,
     icon: String? = nil,
@@ -38,7 +38,7 @@ struct GitHubButton: View {
     self.size = size
     self.action = action
   }
-  
+
   var body: some View {
     Button {
       Task {
@@ -56,7 +56,7 @@ struct GitHubButton: View {
           Image(systemName: icon)
             .font(.system(size: GitHubIconSize.small, weight: .medium))
         }
-        
+
         Text(title)
           .font(.githubSubheadline)
       }
@@ -74,9 +74,9 @@ struct GitHubListItem: View {
   let subtitle: String?
   let badge: String?
   let action: () async -> Void
-  
+
   @State private var isLoading = false
-  
+
   init(
     icon: String,
     iconColor: Color = .githubBlue,
@@ -92,7 +92,7 @@ struct GitHubListItem: View {
     self.badge = badge
     self.action = action
   }
-  
+
   var body: some View {
     Button {
       Task {
@@ -111,21 +111,21 @@ struct GitHubListItem: View {
               .font(.system(size: GitHubIconSize.medium, weight: .medium))
               .foregroundColor(.white)
           )
-        
+
         VStack(alignment: .leading, spacing: GitHubSpacing.xxs) {
           Text(title)
             .githubStyle(.primaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
-          
+
           if let subtitle = subtitle {
             Text(subtitle)
               .githubStyle(.secondaryText)
               .frame(maxWidth: .infinity, alignment: .leading)
           }
         }
-        
+
         Spacer()
-        
+
         HStack(spacing: GitHubSpacing.sm) {
           if let badge = badge {
             Text(badge)
@@ -136,7 +136,7 @@ struct GitHubListItem: View {
               .background(Color.githubBlue)
               .cornerRadius(GitHubCornerRadius.small)
           }
-          
+
           if isLoading {
             ProgressView()
               .progressViewStyle(CircularProgressViewStyle(tint: .githubTertiaryText))
@@ -159,13 +159,13 @@ struct GitHubListItem: View {
 struct GitHubSearchBar: View {
   @Binding var text: String
   let placeholder: String
-  
+
   var body: some View {
     HStack(spacing: GitHubSpacing.sm) {
       Image(systemName: "magnifyingglass")
         .font(.system(size: GitHubIconSize.medium))
         .foregroundColor(.githubTertiaryText)
-      
+
       TextField(placeholder, text: $text)
         .githubStyle(.primaryText)
     }
@@ -179,19 +179,19 @@ struct GitHubSearchBar: View {
 struct GitHubSectionHeader: View {
   let title: String
   let action: (() -> Void)?
-  
+
   init(_ title: String, action: (() -> Void)? = nil) {
     self.title = title
     self.action = action
   }
-  
+
   var body: some View {
     HStack {
       Text(title)
         .githubStyle(.sectionTitle)
-      
+
       Spacer()
-      
+
       if let action = action {
         Button(action: action) {
           Image(systemName: "ellipsis")
@@ -209,12 +209,12 @@ struct GitHubSectionHeader: View {
 struct GitHubBadge: View {
   let text: String
   let color: Color
-  
+
   init(_ text: String, color: Color = .githubBlue) {
     self.text = text
     self.color = color
   }
-  
+
   var body: some View {
     Text(text)
       .font(.githubCaption)
@@ -233,7 +233,7 @@ struct GitHubLoadingView: View {
       ProgressView()
         .progressViewStyle(CircularProgressViewStyle(tint: .githubBlue))
         .scaleEffect(1.2)
-      
+
       Text("로딩 중...")
         .githubStyle(.secondaryText)
     }
@@ -241,3 +241,4 @@ struct GitHubLoadingView: View {
     .background(Color.githubBackground.opacity(0.8))
   }
 }
+

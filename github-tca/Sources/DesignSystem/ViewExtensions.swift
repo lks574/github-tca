@@ -68,7 +68,7 @@ extension View {
     self
       .navigationBarTitleDisplayMode(.large)
       .toolbarBackground(Color.githubBackground, for: .navigationBar)
-      .toolbarColorScheme(.dark, for: .navigationBar)
+//      .toolbarColorScheme(.dark, for: .navigationBar)
   }
 }
 
