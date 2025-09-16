@@ -178,11 +178,9 @@ struct GitHubSearchBar: View {
 // MARK: - GitHub 스타일 섹션 헤더
 struct GitHubSectionHeader: View {
   let title: String
-  let action: (() async -> Void)?
+  let action: (() -> Void)?
   
-  @State private var isLoading = false
-  
-  init(_ title: String, action: (() async -> Void)? = nil) {
+  init(_ title: String, action: (() -> Void)? = nil) {
     self.title = title
     self.action = action
   }
@@ -195,24 +193,11 @@ struct GitHubSectionHeader: View {
       Spacer()
       
       if let action = action {
-        Button {
-          Task {
-            isLoading = true
-            await action()
-            isLoading = false
-          }
-        } label: {
-          if isLoading {
-            ProgressView()
-              .progressViewStyle(CircularProgressViewStyle(tint: .githubTertiaryText))
-              .scaleEffect(0.8)
-          } else {
-            Image(systemName: "ellipsis")
-              .font(.system(size: GitHubIconSize.medium, weight: .medium))
-              .foregroundColor(.githubTertiaryText)
-          }
+        Button(action: action) {
+          Image(systemName: "ellipsis")
+            .font(.system(size: GitHubIconSize.medium, weight: .medium))
+            .foregroundColor(.githubTertiaryText)
         }
-        .disabled(isLoading)
       }
     }
     .padding(.horizontal, GitHubSpacing.screenPadding)
