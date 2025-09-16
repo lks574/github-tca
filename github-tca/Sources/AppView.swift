@@ -23,8 +23,8 @@ struct AppView: View {
           switch store.case {
           case .home(let store):
             HomePage.RootView(store: store)
-          case .notifications:
-            NotificationsPage.RootView()
+          case .notifications(let store):
+            NotificationsPage.RootView(store: store)
           case .explore(let store):
             ExplorePage.RootView(store: store)
           case .profile:
