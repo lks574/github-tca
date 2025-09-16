@@ -27,8 +27,8 @@ struct AppView: View {
             NotificationsPage.RootView(store: store)
           case .explore(let store):
             ExplorePage.RootView(store: store)
-          case .profile:
-            ProfilePage.RootView()
+          case .profile(let store):
+            ProfilePage.RootView(store: store)
           }
         }
       )
@@ -41,11 +41,11 @@ struct AppView: View {
     { _ in
       EmptyView()
     }
-    .onAppear {
-      // 앱 시작 시 홈 화면으로 이동
-      if store.path.isEmpty {
-        store.send(.goToHome)
-      }
-    }
+//    .onAppear {
+//      // 앱 시작 시 홈 화면으로 이동
+//      if store.path.isEmpty {
+//        store.send(.goToHome)
+//      }
+//    }
   }
 }
