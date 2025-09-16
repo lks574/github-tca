@@ -106,18 +106,3 @@ enum GitHubButtonStyle {
     }
   }
 }
-
-// MARK: - 커스텀 Shape
-struct GitHubRoundedRectangle: Shape {
-  let cornerRadius: CGFloat
-  let corners: UIRectCorner
-
-  func path(in rect: CGRect) -> Path {
-    let path = UIBezierPath(
-      roundedRect: rect,
-      byRoundingCorners: corners,
-      cornerRadii: CGSize(width: cornerRadius, height: cornerRadius)
-    )
-    return Path(path.cgPath)
-  }
-}
