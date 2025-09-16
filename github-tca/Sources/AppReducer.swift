@@ -7,12 +7,14 @@ struct AppReducer {
   struct State: Equatable {
     var path = StackState<Path.State>()
     @Presents var present: Present.State?
+    var selectedTab: GitHubTab = .home
   }
 
   enum Action {
     case path(StackAction<Path.State, Path.Action>)
     case present(PresentationAction<Present.Action>)
     case goToHome
+    case tabSelected(GitHubTab)
   }
 
   @Reducer(state: .equatable)
@@ -26,6 +28,24 @@ struct AppReducer {
       case .goToHome:
         state.path.append(.home(.init()))
         return .none
+        
+      case let .tabSelected(tab):
+        state.selectedTab = tab
+        
+        // 탭 변경 시 기존 스택 초기화하고 새로운 화면으로
+        state.path = StackState()
+        switch tab {
+        case .home:
+          state.path.append(.home(.init()))
+        case .notifications:
+          state.path.append(.notifications)
+        case .explore:
+          state.path.append(.explore)
+        case .profile:
+          state.path.append(.profile)
+        }
+        return .none
+        
       case .path, .present:
         return .none
       }
@@ -49,12 +69,18 @@ extension StackState where Element == Path.State {
 @Reducer(state: .equatable)
 enum Path {
   case home(HomeReducer)
+  case notifications
+  case explore
+  case profile
 }
 
 extension Path.State {
   fileprivate var caseID: String {
     switch self {
-      case .home: "home"
+    case .home: "home"
+    case .notifications: "notifications"
+    case .explore: "explore"
+    case .profile: "profile"
     }
   }
 }

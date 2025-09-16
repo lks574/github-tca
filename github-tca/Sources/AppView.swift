@@ -2,35 +2,50 @@ import SwiftUI
 import ComposableArchitecture
 
 struct AppView: View {
-
   @Bindable var store: StoreOf<AppReducer>
 
   var body: some View {
-    NavigationStack(
-      path: $store.scope(state: \.path, action: \.path),
-      root: {
-        VStack(spacing: 8) {
-          Text("시작")
-            .font(.headline)
-          Button(action: { store.send(.goToHome) })
-          {
-            Text("HomePage 이동")
+    VStack(spacing: 0) {
+      // 메인 콘텐츠
+      NavigationStack(
+        path: $store.scope(state: \.path, action: \.path),
+        root: {
+          // 홈 화면을 기본으로 표시
+          if store.path.isEmpty {
+            HomePage.RootView(store: Store(initialState: HomeReducer.State()) {
+              HomeReducer()
+            })
+          } else {
+            EmptyView()
           }
-
-          Divider()
+        },
+        destination: { store in
+          switch store.case {
+          case .home(let store):
+            HomePage.RootView(store: store)
+          case .notifications:
+            NotificationsPage.RootView()
+          case .explore:
+            ExplorePage.RootView()
+          case .profile:
+            ProfilePage.RootView()
+          }
         }
-      },
-      destination: { store in
-        switch store.case {
-        case .home(let store):
-          HomePage.RootView(store: store)
-        }
-      }
-    )
+      )
+      
+      // 하단 탭바
+      GitHubTabBar(selectedTab: $store.selectedTab.sending(\.tabSelected))
+    }
     .sheet(
       store: store.scope(state: \.$present, action: \.present))
     { _ in
-
+      EmptyView()
+    }
+    .onAppear {
+      // 앱 시작 시 홈 화면으로 이동
+      if store.path.isEmpty {
+        store.send(.goToHome)
+      }
     }
   }
 }
