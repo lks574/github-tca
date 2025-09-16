@@ -40,7 +40,7 @@ struct AppReducer {
         case .notifications:
           state.path.append(.notifications)
         case .explore:
-          state.path.append(.explore)
+          state.path.append(.explore(.init()))
         case .profile:
           state.path.append(.profile)
         }
@@ -70,7 +70,7 @@ extension StackState where Element == Path.State {
 enum Path {
   case home(HomeReducer)
   case notifications
-  case explore
+  case explore(ExploreReducer)
   case profile
 }
 

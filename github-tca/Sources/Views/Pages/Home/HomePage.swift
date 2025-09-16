@@ -59,7 +59,7 @@ enum HomePage {
 
   // MARK: - Home Menu Item View
   private struct HomeMenuItemView: View {
-    let item: HomeMenuItem
+    let item: HomeModel.HomeMenuItem
     let onTap: () async -> Void
 
     var body: some View {
@@ -74,8 +74,8 @@ enum HomePage {
 
   // MARK: - 최근 항목 섹션
   private struct GitHubRecentSection: View {
-    let items: [RecentItem]
-    let onItemTap: (RecentItem) -> Void
+    let items: [HomeModel.RecentItem]
+    let onItemTap: (HomeModel.RecentItem) -> Void
 
     var body: some View {
       VStack(spacing: GitHubSpacing.md) {
@@ -123,7 +123,7 @@ enum HomePage {
 
   // MARK: - 빠른 액세스 섹션
   private struct GitHubQuickAccessSection: View {
-    let items: [QuickAccessItem]
+    let items: [HomeModel.QuickAccessItem]
     let onItemTap: () -> Void
 
     var body: some View {

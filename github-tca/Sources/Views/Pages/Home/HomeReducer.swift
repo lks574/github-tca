@@ -9,19 +9,19 @@ struct HomeReducer {
   struct State: Equatable {
     var searchText = ""
     var isLoading = false
-    var menuItems: [HomeMenuItem] = .defulat
-    var starredRepositories: [HomeMenuItem] = []
-    var quickAccessItems: [QuickAccessItem] = .default
-    var recentItems: [RecentItem] = .default
+    var menuItems: [HomeModel.HomeMenuItem] = .defulat
+    var starredRepositories: [HomeModel.HomeMenuItem] = []
+    var quickAccessItems: [HomeModel.QuickAccessItem] = .default
+    var recentItems: [HomeModel.RecentItem] = .default
   }
 
   enum Action: BindableAction, Sendable {
     case binding(BindingAction<State>)
     case loadMoreItems
-    case menuItemTapped(HomeMenuItem.MenuType)
+    case menuItemTapped(HomeModel.HomeMenuItem.MenuType)
     case addBookmarkTapped
     case quickAccessTapped
-    case recentItemTapped(RecentItem)
+    case recentItemTapped(HomeModel.RecentItem)
   }
 
   var body: some ReducerOf<Self> {

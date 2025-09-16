@@ -25,8 +25,8 @@ struct AppView: View {
             HomePage.RootView(store: store)
           case .notifications:
             NotificationsPage.RootView()
-          case .explore:
-            ExplorePage.RootView()
+          case .explore(let store):
+            ExplorePage.RootView(store: store)
           case .profile:
             ProfilePage.RootView()
           }
