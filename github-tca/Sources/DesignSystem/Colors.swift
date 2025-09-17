@@ -18,6 +18,10 @@ extension Color {
   static let githubOrange = Color(red: 1.0, green: 0.6, blue: 0.2) // #FF9933
   static let githubRed = Color(red: 1.0, green: 0.333, blue: 0.333) // #FF5555
   static let githubPurple = Color(red: 0.667, green: 0.4, blue: 1.0) // #AA66FF
+  static let githubYellow = Color(red: 1.0, green: 0.8, blue: 0.2) // #FFCC33
+  
+  // MARK: - 주요 액센트 컬러
+  static let githubAccent = githubBlue
   
   // MARK: - 시스템 구분선/테두리
   static let githubBorder = Color(UIColor.separator)

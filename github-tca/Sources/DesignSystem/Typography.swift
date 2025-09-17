@@ -74,21 +74,35 @@ struct GitHubTextStyle {
     color: .githubBlue,
     lineSpacing: 1
   )
+  
+  static let linkText = GitHubTextStyle(
+    font: .githubSubheadline,
+    color: .githubAccent,
+    lineSpacing: 0
+  )
 }
 
-// MARK: - Text Extension
+// MARK: - 간편한 텍스트 스타일 접근
 extension Text {
-  func githubStyle(_ style: GitHubTextStyle) -> some View {
-    self
-      .font(style.font)
-      .foregroundColor(style.color)
-      .lineSpacing(style.lineSpacing)
+  func primaryText() -> some View {
+    self.githubStyle(.primaryText)
+  }
+  
+  func secondaryText() -> some View {
+    self.githubStyle(.secondaryText)
+  }
+  
+  func captionText() -> some View {
+    self.githubStyle(.captionText)
+  }
+  
+  func linkText() -> some View {
+    self.githubStyle(.linkText)
   }
 }
 
 
-// MARK: - Text Extension
-extension TextField {
+extension View {
   func githubStyle(_ style: GitHubTextStyle) -> some View {
     self
       .font(style.font)

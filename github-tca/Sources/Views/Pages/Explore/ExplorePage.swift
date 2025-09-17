@@ -12,38 +12,19 @@ enum ExplorePage {
     var body: some View {
       ScrollView {
         LazyVStack(spacing: GitHubSpacing.lg) {
-          // 검색 섹션
+          // 검색바 섹션
           VStack(spacing: GitHubSpacing.md) {
-            GitHubSectionHeader("검색")
+            SearchBarSection(store: store)
             
-            LazyVStack(spacing: GitHubSpacing.sm) {
-              ForEach(store.searchItems) { item in
-                ExploreSearchItem(item: item) {
-                  store.send(.searchItemTapped(item))
-                }
-              }
-            }
+            // 카테고리 필터
+            CategoryFilterSection(store: store)
           }
           
-          // 활동 섹션
-          VStack(spacing: GitHubSpacing.md) {
-            GitHubSectionHeader("활동") {
-              // 더보기 액션
-            }
-            
-            LazyVStack(spacing: GitHubSpacing.sm) {
-              ForEach(store.activityItems) { activity in
-                ExploreActivityItem(activity: activity) {
-                  store.send(.activityItemTapped(activity))
-                }
-              }
-              
-              ForEach(store.popularRepositories) { repository in
-                ExploreRepositoryCard(repository: repository) {
-                  store.send(.repositoryTapped(repository))
-                }
-              }
-            }
+          // 검색 결과 또는 기본 컨텐츠
+          if store.showingSearchResults {
+            SearchResultsSection(store: store)
+          } else {
+            DefaultContentSections(store: store)
           }
         }
         .padding(.horizontal, GitHubSpacing.screenPadding)
@@ -52,6 +33,368 @@ enum ExplorePage {
       .background(Color.githubBackground)
       .navigationTitle("탐색")
       .githubNavigationStyle()
+      .onAppear {
+        store.send(.onAppear)
+      }
+    }
+  }
+  
+  // MARK: - Search Bar Section
+  private struct SearchBarSection: View {
+    @Bindable var store: StoreOf<ExploreReducer>
+    
+    var body: some View {
+      VStack(spacing: GitHubSpacing.sm) {
+        HStack(spacing: GitHubSpacing.sm) {
+          HStack(spacing: GitHubSpacing.sm) {
+            Image(systemName: "magnifyingglass")
+              .font(.system(size: GitHubIconSize.small))
+              .foregroundColor(.githubTertiaryText)
+            
+            TextField("레포지토리 검색...", text: $store.searchQuery)
+              .textFieldStyle(PlainTextFieldStyle())
+              .submitLabel(.search)
+              .githubStyle(GitHubTextStyle.primaryText)
+              .onSubmit {
+                store.send(.searchSubmitted)
+              }
+              .onChange(of: store.searchQuery) { _, newValue in
+                store.send(.searchQueryChanged(newValue))
+              }
+            
+            if !store.searchQuery.isEmpty {
+              Button {
+                store.send(.clearSearch)
+              } label: {
+                Image(systemName: "xmark.circle.fill")
+                  .font(.system(size: GitHubIconSize.small))
+                  .foregroundColor(.githubTertiaryText)
+              }
+            }
+          }
+          .padding(.horizontal, GitHubSpacing.md)
+          .padding(.vertical, GitHubSpacing.sm)
+          .background(Color.githubCardBackground)
+          .cornerRadius(GitHubCornerRadius.medium)
+          .overlay(
+            RoundedRectangle(cornerRadius: GitHubCornerRadius.medium)
+              .stroke(Color.githubBorder, lineWidth: 1)
+          )
+          
+          if store.showingSearchResults {
+            Button {
+              store.send(.searchCancelled)
+            } label: {
+              Text("취소")
+                .githubStyle(GitHubTextStyle.linkText)
+            }
+          }
+        }
+        
+        // 검색 결과 정보
+        if !store.searchResultsText.isEmpty {
+          HStack {
+            Text(store.searchResultsText)
+              .githubStyle(GitHubTextStyle.captionText)
+            Spacer()
+          }
+        }
+      }
+    }
+  }
+  
+  // MARK: - Category Filter Section
+  private struct CategoryFilterSection: View {
+    @Bindable var store: StoreOf<ExploreReducer>
+    
+    var body: some View {
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: GitHubSpacing.sm) {
+          ForEach(ExploreReducer.SearchCategory.allCases, id: \.rawValue) { category in
+            CategoryFilterChip(
+              category: category,
+              isSelected: store.selectedCategory == category
+            ) {
+              store.send(.categorySelected(category))
+            }
+          }
+        }
+        .padding(.horizontal, GitHubSpacing.screenPadding)
+      }
+      .padding(.horizontal, -GitHubSpacing.screenPadding)
+    }
+  }
+  
+  // MARK: - Category Filter Chip
+  private struct CategoryFilterChip: View {
+    let category: ExploreReducer.SearchCategory
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+      Button(action: onTap) {
+        Text(category.rawValue)
+          .font(.githubCaption)
+          .fontWeight(.medium)
+          .foregroundColor(isSelected ? .white : .githubSecondaryText)
+          .padding(.horizontal, GitHubSpacing.md)
+          .padding(.vertical, GitHubSpacing.xs)
+          .background(
+            RoundedRectangle(cornerRadius: GitHubCornerRadius.large)
+              .fill(isSelected ? Color.githubAccent : Color.githubCardBackground)
+          )
+          .overlay(
+            RoundedRectangle(cornerRadius: GitHubCornerRadius.large)
+              .stroke(isSelected ? Color.clear : Color.githubBorder, lineWidth: 1)
+          )
+      }
+      .buttonStyle(PlainButtonStyle())
+    }
+  }
+  
+  // MARK: - Search Results Section
+  private struct SearchResultsSection: View {
+    @Bindable var store: StoreOf<ExploreReducer>
+    
+    var body: some View {
+      VStack(spacing: GitHubSpacing.md) {
+        if store.isSearching {
+          LoadingView()
+        } else if store.shouldShowError {
+          ErrorView(message: store.searchError!) {
+            store.send(.refreshSearch)
+          }
+        } else if store.shouldShowEmptyState {
+          EmptySearchView()
+        } else {
+          LazyVStack(spacing: GitHubSpacing.sm) {
+            ForEach(store.searchResults) { repository in
+              SearchResultCard(repository: repository) {
+                store.send(.repositoryTapped(repository))
+              }
+            }
+            
+            // 더 로드하기 버튼
+            if store.canLoadMore {
+              LoadMoreButton(isLoading: store.isLoadingMore) {
+                store.send(.loadMore)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // MARK: - Default Content Sections
+  private struct DefaultContentSections: View {
+    @Bindable var store: StoreOf<ExploreReducer>
+    
+    var body: some View {
+      VStack(spacing: GitHubSpacing.lg) {
+        // 검색 섹션
+        VStack(spacing: GitHubSpacing.md) {
+          GitHubSectionHeader("검색")
+          
+          LazyVStack(spacing: GitHubSpacing.sm) {
+            ForEach(store.searchItems) { item in
+              ExploreSearchItem(item: item) {
+                store.send(.searchItemTapped(item))
+              }
+            }
+          }
+        }
+        
+        // 활동 섹션
+        VStack(spacing: GitHubSpacing.md) {
+          GitHubSectionHeader("활동") {
+            // 더보기 액션
+          }
+          
+          LazyVStack(spacing: GitHubSpacing.sm) {
+            ForEach(store.activityItems) { activity in
+              ExploreActivityItem(activity: activity) {
+                store.send(.activityItemTapped(activity))
+              }
+            }
+            
+            ForEach(store.popularRepositories) { repository in
+              ExploreRepositoryCard(repository: repository) {
+                store.send(.repositoryTapped(repository))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // MARK: - Search Result Card
+  private struct SearchResultCard: View {
+    let repository: ExploreModel.PopularRepository
+    let onTap: () -> Void
+    
+    var body: some View {
+      Button(action: onTap) {
+        GitHubCard {
+          VStack(alignment: .leading, spacing: GitHubSpacing.sm) {
+            // 헤더
+            HStack(spacing: GitHubSpacing.sm) {
+              Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: GitHubIconSize.medium))
+                .foregroundColor(.githubSecondaryText)
+              
+              VStack(alignment: .leading, spacing: 2) {
+                Text(repository.fullName)
+                  .githubStyle(GitHubTextStyle.primaryText)
+                  .fontWeight(.medium)
+                  .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Text("@\(repository.owner)")
+                  .githubStyle(GitHubTextStyle.captionText)
+                  .frame(maxWidth: .infinity, alignment: .leading)
+              }
+              
+              Spacer()
+              
+              VStack(alignment: .trailing, spacing: 2) {
+                HStack(spacing: GitHubSpacing.xxs) {
+                  Image(systemName: "star.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(.githubYellow)
+                  
+                  Text("\(repository.stars.formatted())")
+                    .githubStyle(GitHubTextStyle.captionText)
+                }
+                
+                Text(repository.lastUpdate)
+                  .githubStyle(GitHubTextStyle.captionText)
+              }
+            }
+            
+            // 설명
+            if !repository.description.isEmpty {
+              Text(repository.description)
+                .githubStyle(GitHubTextStyle.secondaryText)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            // 하단 정보
+            HStack(spacing: GitHubSpacing.md) {
+              if !repository.language.isEmpty && repository.language != "Unknown" {
+                HStack(spacing: GitHubSpacing.xxs) {
+                  Circle()
+                    .fill(Color.githubBlue)
+                    .frame(width: 12, height: 12)
+                  
+                  Text(repository.language)
+                    .githubStyle(GitHubTextStyle.captionText)
+                }
+              }
+              
+              if repository.isReleased {
+                HStack(spacing: GitHubSpacing.xxs) {
+                  Image(systemName: "tag.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(.githubGreen)
+                  
+                  Text("최신 릴리스")
+                    .githubStyle(GitHubTextStyle.captionText)
+                }
+              }
+              
+              Spacer()
+            }
+          }
+          .padding(.horizontal, GitHubSpacing.md)
+          .padding(.vertical, GitHubSpacing.md)
+        }
+      }
+      .buttonStyle(PlainButtonStyle())
+    }
+  }
+  
+  // MARK: - Loading View
+  private struct LoadingView: View {
+    var body: some View {
+      VStack(spacing: GitHubSpacing.md) {
+        ProgressView()
+          .scaleEffect(1.2)
+        
+        Text("검색 중...")
+          .githubStyle(GitHubTextStyle.secondaryText)
+      }
+      .padding(.vertical, GitHubSpacing.xl)
+    }
+  }
+  
+  // MARK: - Error View
+  private struct ErrorView: View {
+    let message: String
+    let onRetry: () -> Void
+    
+    var body: some View {
+      VStack(spacing: GitHubSpacing.md) {
+        Image(systemName: "exclamationmark.triangle.fill")
+          .font(.system(size: GitHubIconSize.large))
+          .foregroundColor(.githubRed)
+        
+        Text(message)
+          .githubStyle(GitHubTextStyle.secondaryText)
+          .multilineTextAlignment(.center)
+        
+        Button("다시 시도", action: onRetry)
+          .githubButtonStyle(.secondary)
+      }
+      .padding(.vertical, GitHubSpacing.xl)
+    }
+  }
+  
+  // MARK: - Empty Search View
+  private struct EmptySearchView: View {
+    var body: some View {
+      VStack(spacing: GitHubSpacing.md) {
+        Image(systemName: "magnifyingglass")
+          .font(.system(size: GitHubIconSize.large))
+          .foregroundColor(.githubTertiaryText)
+        
+        VStack(spacing: GitHubSpacing.xs) {
+          Text("검색 결과 없음")
+                  .githubStyle(GitHubTextStyle.primaryText)
+            .fontWeight(.medium)
+          
+          Text("다른 검색어를 시도해보세요")
+            .githubStyle(GitHubTextStyle.secondaryText)
+        }
+      }
+      .padding(.vertical, GitHubSpacing.xl)
+    }
+  }
+  
+  // MARK: - Load More Button
+  private struct LoadMoreButton: View {
+    let isLoading: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+      Button(action: onTap) {
+        HStack(spacing: GitHubSpacing.xs) {
+          if isLoading {
+            ProgressView()
+              .scaleEffect(0.8)
+            
+            Text("로딩 중...")
+              .githubStyle(GitHubTextStyle.secondaryText)
+          } else {
+            Text("더 보기")
+              .githubStyle(GitHubTextStyle.linkText)
+              .fontWeight(.medium)
+          }
+        }
+        .padding(.vertical, GitHubSpacing.md)
+      }
+      .disabled(isLoading)
     }
   }
   
@@ -73,7 +416,7 @@ enum ExplorePage {
             )
           
           Text(item.title)
-            .githubStyle(.primaryText)
+                  .githubStyle(GitHubTextStyle.primaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
           
           Image(systemName: "chevron.right")
@@ -111,17 +454,17 @@ enum ExplorePage {
             VStack(alignment: .leading, spacing: GitHubSpacing.xxs) {
               HStack {
                 Text(activity.fullName)
-                  .githubStyle(.primaryText)
+                  .githubStyle(GitHubTextStyle.primaryText)
                   .fontWeight(.medium)
                 
                 Text(activity.timeAgo)
-                  .githubStyle(.captionText)
+                  .githubStyle(GitHubTextStyle.captionText)
                 
                 Spacer()
               }
               
               Text(activity.action)
-                .githubStyle(.secondaryText)
+                .githubStyle(GitHubTextStyle.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
           }
@@ -152,7 +495,7 @@ enum ExplorePage {
               
               VStack(alignment: .leading, spacing: 2) {
                 Text(repository.fullName)
-                  .githubStyle(.primaryText)
+                  .githubStyle(GitHubTextStyle.primaryText)
                   .fontWeight(.medium)
                   .frame(maxWidth: .infinity, alignment: .leading)
               }
@@ -182,7 +525,7 @@ enum ExplorePage {
                   .foregroundColor(.githubSecondaryText)
                 
                 Text("Fixed: Better cancellation detection in")
-                  .githubStyle(.secondaryText)
+                  .githubStyle(GitHubTextStyle.secondaryText)
                   .frame(maxWidth: .infinity, alignment: .leading)
               }
             }

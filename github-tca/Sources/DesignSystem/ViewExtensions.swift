@@ -70,6 +70,17 @@ extension View {
       .toolbarBackground(Color.githubBackground, for: .navigationBar)
 //      .toolbarColorScheme(.dark, for: .navigationBar)
   }
+  
+  // MARK: - GitHub 버튼 스타일 적용
+  func githubButtonStyle(_ style: GitHubButtonStyle) -> some View {
+    self
+      .font(.githubSubheadline)
+      .foregroundColor(style.textColor)
+      .padding(.horizontal, GitHubSpacing.md)
+      .padding(.vertical, GitHubSpacing.sm)
+      .background(style.backgroundColor)
+      .cornerRadius(GitHubCornerRadius.button)
+  }
 }
 
 // MARK: - 버튼 스타일
