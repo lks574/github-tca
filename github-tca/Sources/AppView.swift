@@ -10,13 +10,24 @@ struct AppView: View {
       NavigationStack(
         path: $store.scope(state: \.path, action: \.path),
         root: {
-          // 홈 화면을 기본으로 표시
-          if store.path.isEmpty {
+          // 현재 선택된 탭의 첫 화면을 root로 표시
+          switch store.selectedTab {
+          case .home:
             HomePage.RootView(store: Store(initialState: HomeReducer.State()) {
               HomeReducer()
             })
-          } else {
-            EmptyView()
+          case .notifications:
+            NotificationsPage.RootView(store: Store(initialState: NotificationsReducer.State()) {
+              NotificationsReducer()
+            })
+          case .explore:
+            ExplorePage.RootView(store: Store(initialState: ExploreReducer.State()) {
+              ExploreReducer()
+            })
+          case .profile:
+            ProfilePage.RootView(store: Store(initialState: ProfileReducer.State()) {
+              ProfileReducer()
+            })
           }
         },
         destination: { store in
@@ -41,11 +52,8 @@ struct AppView: View {
     { _ in
       EmptyView()
     }
-//    .onAppear {
-//      // 앱 시작 시 홈 화면으로 이동
-//      if store.path.isEmpty {
-//        store.send(.goToHome)
-//      }
-//    }
+    .onAppear {
+      // 첫 화면은 이미 root에서 표시됨
+    }
   }
 }

@@ -32,18 +32,8 @@ struct AppReducer {
       case let .tabSelected(tab):
         state.selectedTab = tab
         
-        // 탭 변경 시 기존 스택 초기화하고 새로운 화면으로
+        // 탭 변경 시 기존 스택만 초기화 (첫 화면은 root에서 표시)
         state.path = StackState()
-        switch tab {
-        case .home:
-          state.path.append(.home(.init()))
-        case .notifications:
-          state.path.append(.notifications(.init()))
-        case .explore:
-          state.path.append(.explore(.init()))
-        case .profile:
-          state.path.append(.profile(.init()))
-        }
         return .none
         
       case .path, .present:
