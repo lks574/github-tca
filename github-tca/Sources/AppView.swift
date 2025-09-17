@@ -40,6 +40,8 @@ struct AppView: View {
             ExplorePage.RootView(store: store)
           case .profile(let store):
             ProfilePage.RootView(store: store)
+          case .settings(let store):
+            SettingsPage.RootView(store: store)
           }
         }
       )

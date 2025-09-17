@@ -14,6 +14,7 @@ struct AppReducer {
     case path(StackAction<Path.State, Path.Action>)
     case present(PresentationAction<Present.Action>)
     case goToHome
+    case goToSettings
     case tabSelected(GitHubTab)
   }
 
@@ -27,6 +28,10 @@ struct AppReducer {
       switch action {
       case .goToHome:
         state.path.append(.home(.init()))
+        return .none
+        
+      case .goToSettings:
+        state.path.append(.settings(.init()))
         return .none
         
       case let .tabSelected(tab):
@@ -62,6 +67,7 @@ enum Path {
   case notifications(NotificationsReducer)
   case explore(ExploreReducer)
   case profile(ProfileReducer)
+  case settings(SettingsReducer)
 }
 
 extension Path.State {
@@ -71,6 +77,7 @@ extension Path.State {
     case .notifications: "notifications"
     case .explore: "explore"
     case .profile: "profile"
+    case .settings: "settings"
     }
   }
 }

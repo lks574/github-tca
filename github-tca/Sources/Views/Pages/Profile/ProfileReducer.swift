@@ -114,8 +114,9 @@ struct ProfileReducer {
         return .none
         
       case .settingsTapped:
-        print("설정 화면으로 이동")
-        return .none
+        return .run { _ in
+          await navigation.goToSettings()
+        }
         
       case let .repositoryTapped(repository):
         print("리포지토리 탭됨: \(repository.name)")

@@ -26,6 +26,9 @@ struct GithubTcaApp: App {
     NavigationClient.liveValue = NavigationClient(
       goToHome: { [store] in
         await store.send(.goToHome)
+      },
+      goToSettings: { [store] in
+        await store.send(.goToSettings)
       }
     )
   }

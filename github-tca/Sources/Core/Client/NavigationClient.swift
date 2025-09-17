@@ -3,15 +3,18 @@ import ComposableArchitecture
 
 struct NavigationClient {
   var goToHome: @Sendable () async -> Void
+  var goToSettings: @Sendable () async -> Void
 }
 
 extension NavigationClient: DependencyKey {
   static var liveValue = NavigationClient(
-    goToHome: { }
+    goToHome: { },
+    goToSettings: { }
   )
 
   static let testValue = NavigationClient(
-    goToHome: { }
+    goToHome: { },
+    goToSettings: { }
   )
 }
 
