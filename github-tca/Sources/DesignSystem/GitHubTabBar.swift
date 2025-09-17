@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension GitHubTabBar {
+enum GitHubTabBar {
 
   // MARK: - GitHub 스타일 탭바
   struct TabBar: View {

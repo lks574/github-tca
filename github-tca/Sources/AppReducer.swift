@@ -7,7 +7,7 @@ struct AppReducer {
   struct State: Equatable {
     var path = StackState<Path.State>()
     @Presents var present: Present.State?
-    var selectedTab: GitHubTab = .home
+    var selectedTab: GitHubTabBar.GitHubTab = .home
   }
 
   enum Action {
@@ -15,7 +15,7 @@ struct AppReducer {
     case present(PresentationAction<Present.Action>)
     case goToHome
     case goToSettings
-    case tabSelected(GitHubTab)
+    case tabSelected(GitHubTabBar.GitHubTab)
   }
 
   @Reducer(state: .equatable)
