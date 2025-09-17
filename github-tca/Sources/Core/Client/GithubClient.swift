@@ -1,5 +1,6 @@
 import Foundation
 import ComposableArchitecture
+import SwiftUI
 
 // MARK: - GitHub Client
 
@@ -19,6 +20,15 @@ public struct GitHubClient: Sendable {
   
   /// 사용자 정보 조회
   public var getUser: @Sendable (_ username: String) async throws -> GitHubUser
+  
+  /// 현재 인증된 사용자 정보 조회
+  public var getCurrentUser: @Sendable () async throws -> GitHubUser
+  
+  /// 사용자의 리포지토리 목록 조회
+  public var getUserRepositories: @Sendable (_ username: String, _ page: Int, _ perPage: Int) async throws -> [GitHubRepository]
+  
+  /// 사용자가 별표 표시한 리포지토리 목록 조회
+  public var getUserStarredRepositories: @Sendable (_ username: String, _ page: Int, _ perPage: Int) async throws -> [GitHubRepository]
   
   // MARK: - Convenience Methods
   
@@ -43,6 +53,15 @@ extension GitHubClient: DependencyKey {
       },
       getUser: { username in
         try await service.getUser(username: username)
+      },
+      getCurrentUser: {
+        try await service.getCurrentUser()
+      },
+      getUserRepositories: { username, page, perPage in
+        try await service.getUserRepositories(username: username, page: page, perPage: perPage)
+      },
+      getUserStarredRepositories: { username, page, perPage in
+        try await service.getUserStarredRepositories(username: username, page: page, perPage: perPage)
       },
       searchRepositoriesSimple: { query, page, perPage in
         let parameters = GitHubSearchParameters(
@@ -70,6 +89,15 @@ extension GitHubClient: DependencyKey {
       },
       getUser: { username in
         try await mockService.getUser(username: username)
+      },
+      getCurrentUser: {
+        try await mockService.getCurrentUser()
+      },
+      getUserRepositories: { username, page, perPage in
+        try await mockService.getUserRepositories(username: username, page: page, perPage: perPage)
+      },
+      getUserStarredRepositories: { username, page, perPage in
+        try await mockService.getUserStarredRepositories(username: username, page: page, perPage: perPage)
       },
       searchRepositoriesSimple: { query, page, perPage in
         let parameters = GitHubSearchParameters(
@@ -125,6 +153,83 @@ extension GitHubRepository {
       stars: stargazersCount,
       lastUpdate: lastUpdateString,
       isReleased: topics?.isEmpty == false // 토픽이 있으면 릴리스된 것으로 간주
+    )
+  }
+  
+  /// ProfileModel.RepositoryItem으로 변환
+  func toProfileRepositoryItem() -> ProfileModel.RepositoryItem {
+    let dateFormatter = ISO8601DateFormatter()
+    let relativeFormatter = RelativeDateTimeFormatter()
+    relativeFormatter.locale = Locale(identifier: "ko_KR")
+    relativeFormatter.unitsStyle = .abbreviated
+    
+    let lastUpdateString: String
+    if let date = dateFormatter.date(from: updatedAt) {
+      lastUpdateString = relativeFormatter.localizedString(for: date, relativeTo: Date())
+    } else {
+      lastUpdateString = "알 수 없음"
+    }
+    
+    // 언어별 색상 매핑
+    let languageColor: Color? = {
+      switch language?.lowercased() {
+      case "swift": return .githubOrange
+      case "dart": return .githubInfo
+      case "javascript": return .githubWarning
+      case "typescript": return .githubBlue
+      case "python": return .githubGreen
+      case "java": return .githubRed
+      case "kotlin": return .githubPurple
+      case "go": return .githubSecondaryText
+      default: return .githubTertiaryText
+      }
+    }()
+    
+    return ProfileModel.RepositoryItem(
+      name: name,
+      fullName: fullName,
+      description: description,
+      language: language,
+      languageColor: languageColor,
+      starCount: stargazersCount,
+      forkCount: forksCount,
+      isPrivate: isPrivate,
+      updatedAt: lastUpdateString
+    )
+  }
+}
+
+extension GitHubUser {
+  
+  /// ProfileModel.UserProfile로 변환
+  func toUserProfile() -> ProfileModel.UserProfile {
+    let dateFormatter = ISO8601DateFormatter()
+    let displayFormatter = DateFormatter()
+    displayFormatter.locale = Locale(identifier: "ko_KR")
+    displayFormatter.dateFormat = "yyyy년부터 GitHub 사용"
+    
+    let joinDateString: String
+    if let createdAt, let date = dateFormatter.date(from: createdAt) {
+      joinDateString = displayFormatter.string(from: date)
+    } else {
+      joinDateString = "알 수 없음"
+    }
+    
+    return ProfileModel.UserProfile(
+      username: login,
+      displayName: name ?? login,
+      bio: bio,
+      avatar: avatarUrl,
+      company: company,
+      location: location,
+      followerCount: followers ?? 0,
+      followingCount: following ?? 0,
+      publicRepos: publicRepos ?? 0,
+      privateRepos: 0, // GitHub API에서 제공하지 않음
+      starredRepos: 0, // 별도 API 호출 필요
+      organizations: 0, // 별도 API 호출 필요
+      isVerified: siteAdmin,
+      joinDate: joinDateString
     )
   }
 }

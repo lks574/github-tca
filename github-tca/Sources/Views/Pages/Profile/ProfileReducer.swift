@@ -4,6 +4,8 @@ import SwiftUI
 @Reducer
 struct ProfileReducer {
   @Dependency(\.navigation) var navigation
+  @Dependency(\.gitHubClient) var gitHubClient
+  @Dependency(\.gitHubAuthClient) var gitHubAuthClient
   
   @ObservableState
   struct State: Equatable {
@@ -13,6 +15,8 @@ struct ProfileReducer {
     var isLoading = false
     var showingSignOutAlert = false
     var showingEditProfile = false
+    var isAuthenticated = false
+    var errorMessage: String?
     
     // 필터링된 리포지토리 (상위 3개만 표시)
     var topRepositories: [ProfileModel.RepositoryItem] {
@@ -24,6 +28,12 @@ struct ProfileReducer {
     case binding(BindingAction<State>)
     case loadProfile
     case refreshProfile
+    case signInTapped
+    case signInResponse(Result<GitHubAuthResult, Error>)
+    case loadUserProfile
+    case userProfileResponse(Result<GitHubUser, Error>)
+    case loadUserRepositories
+    case userRepositoriesResponse(Result<[GitHubRepository], Error>)
     case menuItemTapped(ProfileModel.ProfileMenuItem.MenuType)
     case editProfileTapped
     case shareProfileTapped
@@ -45,19 +55,95 @@ struct ProfileReducer {
         
       case .loadProfile:
         state.isLoading = true
-        return .run { send in
-          // 프로필 데이터 로드 시뮬레이션
-          try await Task.sleep(nanoseconds: 1_000_000_000)
-          await send(.binding(.set(\.isLoading, false)))
+        state.errorMessage = nil
+        return .run { [gitHubAuthClient] send in
+          // 인증 상태 확인
+          let isAuthenticated = try await gitHubAuthClient.isAuthenticated()
+          if isAuthenticated {
+            await send(.loadUserProfile)
+          } else {
+            await send(.binding(.set(\.isLoading, false)))
+          }
         }
         
       case .refreshProfile:
         state.isLoading = true
-        return .run { send in
-          // 프로필 새로고침 시뮬레이션
-          try await Task.sleep(nanoseconds: 500_000_000)
-          await send(.binding(.set(\.isLoading, false)))
+        state.errorMessage = nil
+        return .run { [gitHubAuthClient] send in
+          let isAuthenticated = try await gitHubAuthClient.isAuthenticated()
+          if isAuthenticated {
+            await send(.loadUserProfile)
+          } else {
+            await send(.binding(.set(\.isLoading, false)))
+          }
         }
+        
+      case .signInTapped:
+        state.isLoading = true
+        state.errorMessage = nil
+        return .run { [gitHubAuthClient] send in
+          await send(.signInResponse(
+            Result {
+              try await gitHubAuthClient.signIn()
+            }
+          ))
+        }
+        
+      case let .signInResponse(.success(authResult)):
+        state.isLoading = false
+        state.isAuthenticated = true
+        state.userProfile = authResult.user.toUserProfile()
+        return .run { send in
+          await send(.loadUserRepositories)
+        }
+        
+      case let .signInResponse(.failure(error)):
+        state.isLoading = false
+        state.errorMessage = error.localizedDescription
+        return .none
+        
+      case .loadUserProfile:
+        return .run { [gitHubClient] send in
+          await send(.userProfileResponse(
+            Result {
+              try await gitHubClient.getCurrentUser()
+            }
+          ))
+        }
+        
+      case let .userProfileResponse(.success(user)):
+        state.userProfile = user.toUserProfile()
+        state.isAuthenticated = true
+        state.isLoading = false
+        return .run { send in
+          await send(.loadUserRepositories)
+        }
+        
+      case let .userProfileResponse(.failure(error)):
+        state.isLoading = false
+        state.errorMessage = error.localizedDescription
+        return .none
+        
+      case .loadUserRepositories:
+        return .run { [gitHubClient, username = state.userProfile.username] send in
+          await send(.userRepositoriesResponse(
+            Result {
+              try await gitHubClient.getUserRepositories(
+                username: username,
+                page: 1,
+                perPage: 10
+              )
+            }
+          ))
+        }
+        
+      case let .userRepositoriesResponse(.success(repos)):
+        state.repositories = repos.map { $0.toProfileRepositoryItem() }
+        return .none
+        
+      case let .userRepositoriesResponse(.failure(error)):
+        state.errorMessage = error.localizedDescription
+        return .none
         
       case let .menuItemTapped(menuType):
         switch menuType {
@@ -114,7 +200,7 @@ struct ProfileReducer {
         return .none
         
       case .settingsTapped:
-        return .run { _ in
+        return .run { [navigation] _ in
           await navigation.goToSettings()
         }
         
@@ -132,10 +218,18 @@ struct ProfileReducer {
         
       case .signOutConfirmed:
         state.showingSignOutAlert = false
-        // 실제 로그아웃 로직
-        return .run { _ in
-          print("로그아웃 처리")
-          // 로그아웃 후 로그인 화면으로 이동
+        state.isLoading = true
+        return .run { [gitHubAuthClient] send in
+          do {
+            try await gitHubAuthClient.signOut()
+            await send(.binding(.set(\.isAuthenticated, false)))
+            await send(.binding(.set(\.isLoading, false)))
+            await send(.binding(.set(\.userProfile, .default)))
+            await send(.binding(.set(\.repositories, .default)))
+          } catch {
+            await send(.binding(.set(\.isLoading, false)))
+            await send(.binding(.set(\.errorMessage, error.localizedDescription)))
+          }
         }
         
       case .signOutCancelled:

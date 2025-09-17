@@ -6,6 +6,47 @@ enum ProfilePage {
     @Bindable var store: StoreOf<ProfileReducer>
     
     var body: some View {
+      Group {
+        if store.isAuthenticated {
+          // 인증된 사용자 프로필
+          authenticatedProfileView
+        } else {
+          // 로그인 화면
+          loginView
+        }
+      }
+      .background(Color.githubBackground)
+      .navigationTitle("프로필")
+      .githubNavigationStyle()
+      .onAppear {
+        store.send(.loadProfile)
+      }
+      .refreshable {
+        store.send(.refreshProfile)
+      }
+      .alert("로그아웃", isPresented: $store.showingSignOutAlert) {
+        Button("취소", role: .cancel) {
+          store.send(.signOutCancelled)
+        }
+        Button("로그아웃", role: .destructive) {
+          store.send(.signOutConfirmed)
+        }
+      } message: {
+        Text("정말 로그아웃하시겠습니까?")
+      }
+      .alert("오류", isPresented: .constant(store.errorMessage != nil)) {
+        Button("확인") {
+          store.send(.binding(.set(\.errorMessage, nil)))
+        }
+      } message: {
+        if let errorMessage = store.errorMessage {
+          Text(errorMessage)
+        }
+      }
+    }
+    
+    // MARK: - Authenticated Profile View
+    private var authenticatedProfileView: some View {
       ScrollView {
         VStack(spacing: GitHubSpacing.lg) {
           // 프로필 헤더
@@ -25,9 +66,6 @@ enum ProfilePage {
         .padding(.horizontal, GitHubSpacing.screenPadding)
         .padding(.top, GitHubSpacing.md)
       }
-      .background(Color.githubBackground)
-      .navigationTitle("프로필")
-      .githubNavigationStyle()
       .toolbar {
         ToolbarItemGroup(placement: .navigationBarTrailing) {
           Button {
@@ -47,21 +85,71 @@ enum ProfilePage {
           }
         }
       }
-      .onAppear {
-        store.send(.loadProfile)
-      }
-      .refreshable {
-        store.send(.refreshProfile)
-      }
-      .alert("로그아웃", isPresented: $store.showingSignOutAlert) {
-        Button("취소", role: .cancel) {
-          store.send(.signOutCancelled)
+    }
+    
+    // MARK: - Login View
+    private var loginView: some View {
+      VStack(spacing: GitHubSpacing.xl) {
+        Spacer()
+        
+        // GitHub 로고 및 제목
+        VStack(spacing: GitHubSpacing.lg) {
+          Image(systemName: "octagon.fill")
+            .font(.system(size: 80))
+            .foregroundColor(.githubBlue)
+          
+          VStack(spacing: GitHubSpacing.sm) {
+            Text("GitHub에 로그인")
+              .font(.githubTitle1)
+              .fontWeight(.bold)
+              .foregroundColor(.githubPrimaryText)
+            
+            Text("리포지토리와 프로필을 확인하세요")
+              .font(.githubSubheadline)
+              .foregroundColor(.githubSecondaryText)
+              .multilineTextAlignment(.center)
+          }
         }
-        Button("로그아웃", role: .destructive) {
-          store.send(.signOutConfirmed)
+        
+        Spacer()
+        
+        // 로그인 버튼
+        VStack(spacing: GitHubSpacing.md) {
+          Button {
+            store.send(.signInTapped)
+          } label: {
+            HStack(spacing: GitHubSpacing.sm) {
+              if store.isLoading {
+                ProgressView()
+                  .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                  .scaleEffect(0.8)
+              } else {
+                Image(systemName: "octagon.fill")
+                  .font(.system(size: GitHubIconSize.medium))
+              }
+              
+              Text(store.isLoading ? "로그인 중..." : "GitHub로 로그인")
+                .font(.githubSubheadline)
+                .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(
+              RoundedRectangle(cornerRadius: GitHubCornerRadius.medium)
+                .fill(Color.githubBlue)
+            )
+          }
+          .disabled(store.isLoading)
+          
+          Text("GitHub 계정으로 안전하게 로그인하세요")
+            .font(.githubCaption)
+            .foregroundColor(.githubTertiaryText)
+            .multilineTextAlignment(.center)
         }
-      } message: {
-        Text("정말 로그아웃하시겠습니까?")
+        .padding(.horizontal, GitHubSpacing.screenPadding)
+        
+        Spacer()
       }
     }
   }
@@ -75,14 +163,21 @@ enum ProfilePage {
         // 아바타 및 기본 정보
         HStack(spacing: GitHubSpacing.md) {
           // 아바타
-          Circle()
-            .fill(Color.githubGreen)
-            .frame(width: 80, height: 80)
-            .overlay(
-              Text(String(store.userProfile.displayName.prefix(1)))
-                .font(.system(size: 32, weight: .bold))
-                .foregroundColor(.white)
-            )
+          AsyncImage(url: URL(string: store.userProfile.avatar ?? "")) { image in
+            image
+              .resizable()
+              .aspectRatio(contentMode: .fill)
+          } placeholder: {
+            Circle()
+              .fill(Color.githubGreen)
+              .overlay(
+                Text(String(store.userProfile.displayName.prefix(1)))
+                  .font(.system(size: 32, weight: .bold))
+                  .foregroundColor(.white)
+              )
+          }
+          .frame(width: 80, height: 80)
+          .clipShape(Circle())
           
           VStack(alignment: .leading, spacing: GitHubSpacing.xs) {
             Text(store.userProfile.displayName)

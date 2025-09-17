@@ -149,6 +149,20 @@ public struct GitHubUser: Codable, Equatable, Identifiable, Sendable {
   public let type: String
   public let siteAdmin: Bool
   
+  // Extended user info (OAuth에서 추가로 받는 정보)
+  public let name: String?
+  public let company: String?
+  public let blog: String?
+  public let location: String?
+  public let email: String?
+  public let bio: String?
+  public let publicRepos: Int?
+  public let publicGists: Int?
+  public let followers: Int?
+  public let following: Int?
+  public let createdAt: String?
+  public let updatedAt: String?
+  
   public init(
     id: Int,
     login: String,
@@ -157,7 +171,19 @@ public struct GitHubUser: Codable, Equatable, Identifiable, Sendable {
     url: String,
     htmlUrl: String,
     type: String,
-    siteAdmin: Bool
+    siteAdmin: Bool,
+    name: String? = nil,
+    company: String? = nil,
+    blog: String? = nil,
+    location: String? = nil,
+    email: String? = nil,
+    bio: String? = nil,
+    publicRepos: Int? = nil,
+    publicGists: Int? = nil,
+    followers: Int? = nil,
+    following: Int? = nil,
+    createdAt: String? = nil,
+    updatedAt: String? = nil
   ) {
     self.id = id
     self.login = login
@@ -167,14 +193,31 @@ public struct GitHubUser: Codable, Equatable, Identifiable, Sendable {
     self.htmlUrl = htmlUrl
     self.type = type
     self.siteAdmin = siteAdmin
+    self.name = name
+    self.company = company
+    self.blog = blog
+    self.location = location
+    self.email = email
+    self.bio = bio
+    self.publicRepos = publicRepos
+    self.publicGists = publicGists
+    self.followers = followers
+    self.following = following
+    self.createdAt = createdAt
+    self.updatedAt = updatedAt
   }
   
   enum CodingKeys: String, CodingKey {
-    case id, login, url, type
+    case id, login, url, type, name, company, blog, location, email, bio
     case avatarUrl = "avatar_url"
     case gravatarId = "gravatar_id"
     case htmlUrl = "html_url"
     case siteAdmin = "site_admin"
+    case publicRepos = "public_repos"
+    case publicGists = "public_gists"
+    case followers, following
+    case createdAt = "created_at"
+    case updatedAt = "updated_at"
   }
 }
 

@@ -24,6 +24,14 @@ public enum GitHubError: Error, Equatable, Sendable {
   case validationFailed(String)
   case internalServerError
   
+  // MARK: - Authentication Errors
+  case authenticationRequired
+  case authenticationFailed
+  case tokenExpired
+  case tokenInvalid
+  case oauthCancelled
+  case oauthFailed(String)
+  
   // MARK: - Response Errors
   case noData
   case invalidResponse
@@ -66,6 +74,18 @@ public enum GitHubError: Error, Equatable, Sendable {
       return "요청 검증에 실패했습니다: \(message)"
     case .internalServerError:
       return "서버 내부 오류가 발생했습니다."
+    case .authenticationRequired:
+      return "GitHub 로그인이 필요합니다."
+    case .authenticationFailed:
+      return "인증에 실패했습니다."
+    case .tokenExpired:
+      return "인증 토큰이 만료되었습니다. 다시 로그인해주세요."
+    case .tokenInvalid:
+      return "유효하지 않은 인증 토큰입니다."
+    case .oauthCancelled:
+      return "로그인이 취소되었습니다."
+    case .oauthFailed(let message):
+      return "OAuth 인증 실패: \(message)"
     
     // Response Errors
     case .noData:
@@ -97,6 +117,12 @@ public enum GitHubError: Error, Equatable, Sendable {
     case .rateLimitExceeded: return "RATE_LIMIT_EXCEEDED"
     case .validationFailed: return "VALIDATION_FAILED"
     case .internalServerError: return "INTERNAL_SERVER_ERROR"
+    case .authenticationRequired: return "AUTHENTICATION_REQUIRED"
+    case .authenticationFailed: return "AUTHENTICATION_FAILED"
+    case .tokenExpired: return "TOKEN_EXPIRED"
+    case .tokenInvalid: return "TOKEN_INVALID"
+    case .oauthCancelled: return "OAUTH_CANCELLED"
+    case .oauthFailed: return "OAUTH_FAILED"
     case .noData: return "NO_DATA"
     case .invalidResponse: return "INVALID_RESPONSE"
     case .decodingError: return "DECODING_ERROR"
@@ -111,8 +137,10 @@ public enum GitHubError: Error, Equatable, Sendable {
       return false
     case .networkError, .noInternetConnection, .timeout, .serverUnavailable:
       return true
-    case .unauthorized, .forbidden, .notFound:
+    case .unauthorized, .forbidden, .notFound, .authenticationRequired, .authenticationFailed, .tokenInvalid, .oauthCancelled, .oauthFailed:
       return false
+    case .tokenExpired:
+      return true // 토큰 만료는 다시 로그인하면 복구 가능
     case .rateLimitExceeded:
       return true
     case .validationFailed, .internalServerError:
@@ -129,6 +157,10 @@ public enum GitHubError: Error, Equatable, Sendable {
     switch self {
     case .timeout, .serverUnavailable, .rateLimitExceeded:
       return true
+    case .tokenExpired:
+      return false // 토큰 만료는 재시도가 아닌 재로그인 필요
+    case .authenticationRequired, .authenticationFailed, .tokenInvalid, .oauthCancelled, .oauthFailed:
+      return false // 인증 관련 에러는 재시도하지 않음
     default:
       return false
     }
@@ -144,6 +176,16 @@ extension GitHubError {
     case 400:
       return .invalidQuery
     case 401:
+      // 401 에러에서 토큰 관련 정보 확인
+      if let data = data,
+         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+         let message = json["message"] as? String {
+        if message.contains("token") && message.contains("expired") {
+          return .tokenExpired
+        } else if message.contains("token") {
+          return .tokenInvalid
+        }
+      }
       return .unauthorized
     case 403:
       if let data = data,
