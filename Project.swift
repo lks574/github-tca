@@ -18,6 +18,12 @@ let project = Project(
             "UIColorName": "",
             "UIImageName": "",
           ],
+          "CFBundleURLTypes": [
+            [
+              "CFBundleURLName": "GitHub OAuth",
+              "CFBundleURLSchemes": ["github-tca"]
+            ]
+          ],
         ]
       ),
       buildableFolders: [

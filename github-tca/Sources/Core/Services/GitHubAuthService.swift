@@ -76,6 +76,11 @@ public actor GitHubAuthService: GitHubAuthServiceProtocol {
   // MARK: - Public Methods
 
   public func signIn() async throws -> GitHubAuthResult {
+    #if DEBUG
+    // 디버그 정보 출력
+    GitHubConfig.printDebugInfo()
+    #endif
+    
     // OAuth URL 구성
     guard var components = URLComponents(string: "https://github.com/login/oauth/authorize") else {
       throw GitHubError.invalidURL
@@ -92,7 +97,11 @@ public actor GitHubAuthService: GitHubAuthServiceProtocol {
       throw GitHubError.invalidURL
     }
 
-    // 실제 OAuth 플로우 (현재는 Mock으로 시뮬레이션)
+    #if DEBUG
+    print("🚀 OAuth URL: \(authURL.absoluteString)")
+    #endif
+
+    // 실제 OAuth 플로우
     return try await performOAuthFlow(authURL: authURL)
   }
 
