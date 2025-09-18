@@ -28,6 +28,7 @@ struct ProfileReducer {
     case binding(BindingAction<State>)
     case loadProfile
     case refreshProfile
+    case checkAuthenticationStatus
     case signInTapped
     case signInResponse(Result<GitHubAuthResult, Error>)
     case loadUserProfile
@@ -54,29 +55,34 @@ struct ProfileReducer {
         return .none
         
       case .loadProfile:
+        // 먼저 간단하게 키체인 토큰 확인
+        return .send(.checkAuthenticationStatus)
+        
+      case .checkAuthenticationStatus:
         state.isLoading = true
         state.errorMessage = nil
         return .run { [gitHubAuthClient] send in
-          // 인증 상태 확인
-          let isAuthenticated = try await gitHubAuthClient.isAuthenticated()
-          if isAuthenticated {
-            await send(.loadUserProfile)
-          } else {
+          do {
+            // Keychain에 토큰이 있는지 간단히 확인
+            let hasToken = try await gitHubAuthClient.getAccessToken() != nil
+            if hasToken {
+              await send(.binding(.set(\.isAuthenticated, true)))
+              await send(.loadUserProfile)
+            } else {
+              await send(.binding(.set(\.isAuthenticated, false)))
+              await send(.binding(.set(\.isLoading, false)))
+            }
+          } catch {
+            // 토큰 확인 실패 시 로그아웃 상태로 처리
+            await send(.binding(.set(\.isAuthenticated, false)))
             await send(.binding(.set(\.isLoading, false)))
+            await send(.binding(.set(\.errorMessage, "인증 상태 확인 실패")))
           }
         }
         
       case .refreshProfile:
-        state.isLoading = true
-        state.errorMessage = nil
-        return .run { [gitHubAuthClient] send in
-          let isAuthenticated = try await gitHubAuthClient.isAuthenticated()
-          if isAuthenticated {
-            await send(.loadUserProfile)
-          } else {
-            await send(.binding(.set(\.isLoading, false)))
-          }
-        }
+        // 새로고침 시에도 키체인 토큰 확인
+        return .send(.checkAuthenticationStatus)
         
       case .signInTapped:
         state.isLoading = true
