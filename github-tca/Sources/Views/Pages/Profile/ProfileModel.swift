@@ -1,11 +1,11 @@
 import SwiftUI
 import Foundation
 
-enum ProfileModel {
-  
+public enum ProfileModel {
+
   // MARK: - User Profile
-  struct UserProfile: Equatable, Identifiable {
-    let id = UUID()
+  public struct UserProfile: Equatable, Identifiable {
+    public let id = UUID()
     let username: String
     let displayName: String
     let bio: String?
@@ -23,8 +23,8 @@ enum ProfileModel {
   }
   
   // MARK: - Profile Menu Item
-  struct ProfileMenuItem: Equatable, Identifiable {
-    let id = UUID()
+  public struct ProfileMenuItem: Equatable, Identifiable {
+    public let id = UUID()
     let icon: String
     let iconColor: Color
     let title: String
@@ -48,8 +48,8 @@ enum ProfileModel {
   }
   
   // MARK: - Repository Item
-  struct RepositoryItem: Equatable, Identifiable {
-    let id = UUID()
+  public struct RepositoryItem: Equatable, Identifiable {
+    public let id: Int
     let name: String
     let fullName: String
     let description: String?
@@ -62,8 +62,8 @@ enum ProfileModel {
   }
   
   // MARK: - Achievement
-  struct Achievement: Equatable, Identifiable {
-    let id = UUID()
+  public struct Achievement: Equatable, Identifiable {
+    public let id = UUID()
     let title: String
     let description: String
     let icon: String
@@ -191,6 +191,7 @@ extension [ProfileModel.ProfileMenuItem] {
 extension [ProfileModel.RepositoryItem] {
   static let `default`: Self = [
     .init(
+      id: 0,
       name: "ysnzp_random_flutter",
       fullName: "lks574/ysnzp_random_flutter",
       description: "flutter 점소",
@@ -202,6 +203,7 @@ extension [ProfileModel.RepositoryItem] {
       updatedAt: "1일 전"
     ),
     .init(
+      id: 1,
       name: "flutter_staggered_grid",
       fullName: "lks574/flutter_staggered_grid",
       description: "플러터 그리드뷰 구현",
@@ -213,6 +215,7 @@ extension [ProfileModel.RepositoryItem] {
       updatedAt: "3일 전"
     ),
     .init(
+      id: 2,
       name: "ios_practice",
       fullName: "lks574/ios_practice",
       description: "iOS 개발 연습 프로젝트",

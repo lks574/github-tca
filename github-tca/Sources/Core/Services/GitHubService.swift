@@ -1,5 +1,6 @@
 import Foundation
 import ComposableArchitecture
+import SwiftUI
 
 // MARK: - GitHub Service Protocol
 
@@ -42,6 +43,20 @@ public protocol GitHubServiceProtocol: Sendable {
   ///   - perPage: 페이지당 항목 수
   /// - Returns: 별표 표시한 리포지토리 목록
   func getUserStarredRepositories(username: String, page: Int, perPage: Int) async throws -> [GitHubRepository]
+  
+  /// 현재 사용자의 리포지토리 목록 조회 (인증된 사용자)
+  /// - Parameters:
+  ///   - page: 페이지 번호
+  ///   - perPage: 페이지당 항목 수
+  ///   - type: 리포지토리 타입 (all, owner, member 등)
+  ///   - sort: 정렬 방식 (updated, created, pushed, full_name)
+  /// - Returns: 현재 사용자의 리포지토리 목록
+  func getCurrentUserRepositories(page: Int, perPage: Int, type: String, sort: String) async throws -> [ProfileModel.RepositoryItem]
+  
+  /// 현재 사용자의 리포지토리 검색
+  /// - Parameter query: 검색 쿼리
+  /// - Returns: 검색된 리포지토리 목록
+  func searchUserRepositories(query: String) async throws -> [ProfileModel.RepositoryItem]
 }
 
 // MARK: - GitHub Service Implementation
@@ -229,11 +244,15 @@ public actor GitHubService: GitHubServiceProtocol {
     // 인증 토큰 추가 (Keychain에서 가져오기)
     do {
       if let token = try await authClient.getAccessToken() {
+        print("✅ 인증 토큰 확인됨: \(String(token.prefix(10)))...")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+      } else {
+        print("❌ 인증 토큰이 없습니다!")
+        throw GitHubError.authenticationRequired
       }
     } catch {
-      // 토큰 가져오기 실패시 로그만 출력하고 계속 진행 (공개 API는 토큰 없이도 접근 가능)
       print("⚠️ 토큰 가져오기 실패: \(error.localizedDescription)")
+      throw GitHubError.authenticationRequired
     }
     
     // 네트워크 요청 수행
@@ -241,33 +260,154 @@ public actor GitHubService: GitHubServiceProtocol {
     do {
       (data, response) = try await session.data(for: request)
     } catch let urlError as URLError {
+      print("❌ 네트워크 오류: \(urlError)")
       throw GitHubError.from(urlError: urlError)
     } catch {
+      print("❌ 요청 실패: \(error)")
       throw GitHubError.networkError(error.localizedDescription)
     }
     
     // HTTP 응답 검증
     guard let httpResponse = response as? HTTPURLResponse else {
+      print("❌ 잘못된 HTTP 응답")
       throw GitHubError.invalidResponse
     }
     
+    print("📡 HTTP 응답 상태: \(httpResponse.statusCode)")
+    
     // 상태 코드 확인
     guard 200...299 ~= httpResponse.statusCode else {
+      print("❌ HTTP 오류: \(httpResponse.statusCode)")
+      if let errorData = String(data: data, encoding: .utf8) {
+        print("❌ 오류 응답: \(errorData)")
+      }
       throw GitHubError.from(httpStatusCode: httpResponse.statusCode, data: data)
     }
     
     // 데이터 존재 확인
     guard !data.isEmpty else {
+      print("❌ 응답 데이터가 비어있음")
       throw GitHubError.noData
     }
+    
+    print("✅ 데이터 수신 성공: \(data.count) bytes")
     
     // JSON 디코딩
     do {
       let decoder = JSONDecoder()
       decoder.dateDecodingStrategy = .iso8601
-      return try decoder.decode(T.self, from: data)
+      let result = try decoder.decode(T.self, from: data)
+      print("✅ JSON 디코딩 성공")
+      return result
     } catch {
+      print("❌ JSON 디코딩 실패: \(error)")
+      if let jsonString = String(data: data, encoding: .utf8) {
+        print("❌ JSON 데이터: \(String(jsonString.prefix(500)))")
+      }
       throw GitHubError.decodingError(error.localizedDescription)
     }
+  }
+  
+  /// 현재 사용자의 리포지토리 목록 조회 (인증된 사용자)
+  public func getCurrentUserRepositories(page: Int, perPage: Int, type: String, sort: String) async throws -> [ProfileModel.RepositoryItem] {
+    var urlComponents = URLComponents(string: "\(baseURL)/user/repos")!
+    urlComponents.queryItems = [
+      URLQueryItem(name: "page", value: "\(page)"),
+      URLQueryItem(name: "per_page", value: "\(perPage)"),
+      URLQueryItem(name: "type", value: type),
+      URLQueryItem(name: "sort", value: sort),
+      URLQueryItem(name: "direction", value: "desc")
+    ]
+
+    print("🔗 API 호출: \(urlComponents.url?.absoluteString ?? "invalid URL")")
+    
+    let repositories: [GitHubRepository] = try await performAuthenticatedRequest(url: urlComponents.url!, responseType: [GitHubRepository].self)
+
+    // GitHubRepository를 ProfileModel.RepositoryItem으로 변환
+    return repositories.map { repo in
+      ProfileModel.RepositoryItem(
+        id: repo.id,
+        name: repo.name,
+        fullName: repo.fullName,
+        description: repo.description,
+        language: repo.language,
+        languageColor: colorForLanguage(repo.language),
+        starCount: repo.stargazersCount,
+        forkCount: repo.forksCount,
+        isPrivate: repo.isPrivate,
+        updatedAt: formatDate(repo.updatedAt)
+      )
+    }
+  }
+  
+  /// 현재 사용자의 리포지토리 검색
+  public func searchUserRepositories(query: String) async throws -> [ProfileModel.RepositoryItem] {
+    // 현재 사용자 정보 먼저 가져오기
+    let currentUser = try await getCurrentUser()
+    
+    // 사용자의 리포지토리 중에서 검색
+    var urlComponents = URLComponents(string: "\(baseURL)/search/repositories")!
+    urlComponents.queryItems = [
+      URLQueryItem(name: "q", value: "\(query) user:\(currentUser.login)"),
+      URLQueryItem(name: "sort", value: "updated"),
+      URLQueryItem(name: "order", value: "desc"),
+      URLQueryItem(name: "per_page", value: "50")
+    ]
+    
+    let searchResponse: GitHubSearchResponse = try await performAuthenticatedRequest(url: urlComponents.url!, responseType: GitHubSearchResponse.self)
+
+    // GitHubRepository를 ProfileModel.RepositoryItem으로 변환
+    return searchResponse.items.map { repo in
+      ProfileModel.RepositoryItem(
+        id: repo.id,
+        name: repo.name,
+        fullName: repo.fullName,
+        description: repo.description,
+        language: repo.language,
+        languageColor: colorForLanguage(repo.language),
+        starCount: repo.stargazersCount,
+        forkCount: repo.forksCount,
+        isPrivate: repo.isPrivate,
+        updatedAt: formatDate(repo.updatedAt)
+      )
+    }
+  }
+  
+  // MARK: - Helper Methods
+  
+  /// 프로그래밍 언어에 따른 색상 반환
+  private func colorForLanguage(_ language: String?) -> Color? {
+    guard let language = language else { return nil }
+    
+    switch language.lowercased() {
+    case "swift": return Color(red: 0.98, green: 0.36, blue: 0.22)
+    case "javascript": return Color(red: 0.94, green: 0.85, blue: 0.29)
+    case "typescript": return Color(red: 0.18, green: 0.36, blue: 0.73)
+    case "python": return Color(red: 0.22, green: 0.42, blue: 0.69)
+    case "java": return Color(red: 0.89, green: 0.27, blue: 0.05)
+    case "kotlin": return Color(red: 0.46, green: 0.44, blue: 0.87)
+    case "go": return Color(red: 0.22, green: 0.67, blue: 0.73)
+    case "rust": return Color(red: 0.87, green: 0.36, blue: 0.09)
+    case "c++", "cpp": return Color(red: 0.95, green: 0.26, blue: 0.38)
+    case "c": return Color(red: 0.33, green: 0.42, blue: 0.53)
+    case "html": return Color(red: 0.89, green: 0.29, blue: 0.19)
+    case "css": return Color(red: 0.09, green: 0.45, blue: 0.8)
+    case "dart": return Color(red: 0.0, green: 0.66, blue: 0.93)
+    case "ruby": return Color(red: 0.8, green: 0.09, blue: 0.22)
+    case "php": return Color(red: 0.31, green: 0.4, blue: 0.68)
+    default: return Color.githubTertiaryText
+    }
+  }
+  
+  /// 날짜를 포맷팅
+  private func formatDate(_ dateString: String) -> String {
+    let formatter = ISO8601DateFormatter()
+    guard let date = formatter.date(from: dateString) else {
+      return dateString
+    }
+    
+    let relativeFormatter = RelativeDateTimeFormatter()
+    relativeFormatter.dateTimeStyle = .named
+    return relativeFormatter.localizedString(for: date, relativeTo: Date())
   }
 }

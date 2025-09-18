@@ -216,4 +216,12 @@ public struct MockGitHubService: GitHubServiceProtocol {
     let searchResult = try await searchRepositories(parameters: GitHubSearchParameters(query: "swift", page: page, perPage: perPage))
     return searchResult.items
   }
+
+  public func getCurrentUserRepositories(page: Int, perPage: Int, type: String, sort: String) async throws -> [ProfileModel.RepositoryItem] {
+    .default
+  }
+
+  public func searchUserRepositories(query: String) async throws -> [ProfileModel.RepositoryItem] {
+    .default
+  }
 }

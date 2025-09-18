@@ -30,6 +30,12 @@ public struct GitHubClient: Sendable {
   /// 사용자가 별표 표시한 리포지토리 목록 조회
   public var getUserStarredRepositories: @Sendable (_ username: String, _ page: Int, _ perPage: Int) async throws -> [GitHubRepository]
   
+  /// 현재 사용자의 리포지토리 목록 조회 (인증된 사용자)
+  public var getCurrentUserRepositories: @Sendable (_ page: Int, _ perPage: Int, _ type: String, _ sort: String) async throws -> [ProfileModel.RepositoryItem]
+  
+  /// 현재 사용자의 리포지토리 검색
+  public var searchUserRepositories: @Sendable (_ query: String) async throws -> [ProfileModel.RepositoryItem]
+  
   // MARK: - Convenience Methods
   
   /// 간단한 레포지토리 검색 (기본 파라미터 사용)
@@ -62,6 +68,12 @@ extension GitHubClient: DependencyKey {
       },
       getUserStarredRepositories: { username, page, perPage in
         try await service.getUserStarredRepositories(username: username, page: page, perPage: perPage)
+      },
+      getCurrentUserRepositories: { page, perPage, type, sort in
+        try await service.getCurrentUserRepositories(page: page, perPage: perPage, type: type, sort: sort)
+      },
+      searchUserRepositories: { query in
+        try await service.searchUserRepositories(query: query)
       },
       searchRepositoriesSimple: { query, page, perPage in
         let parameters = GitHubSearchParameters(
@@ -98,6 +110,12 @@ extension GitHubClient: DependencyKey {
       },
       getUserStarredRepositories: { username, page, perPage in
         try await service.getUserStarredRepositories(username: username, page: page, perPage: perPage)
+      },
+      getCurrentUserRepositories: { page, perPage, type, sort in
+        try await service.getCurrentUserRepositories(page: page, perPage: perPage, type: type, sort: sort)
+      },
+      searchUserRepositories: { query in
+        try await service.searchUserRepositories(query: query)
       },
       searchRepositoriesSimple: { query, page, perPage in
         let parameters = GitHubSearchParameters(
@@ -186,6 +204,7 @@ extension GitHubRepository {
     }()
     
     return ProfileModel.RepositoryItem(
+      id: id,
       name: name,
       fullName: fullName,
       description: description,
