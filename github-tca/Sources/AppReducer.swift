@@ -20,6 +20,7 @@ struct AppReducer {
     case present(PresentationAction<Present.Action>)
     case goToHome
     case goToSettings
+    case goToRepositoryDetail(ProfileModel.RepositoryItem)
     case tabSelected(GitHubTabBar.GitHubTab)
     
     // 인증 관련 액션
@@ -45,6 +46,10 @@ struct AppReducer {
         
       case .goToSettings:
         state.path.append(.settings(.init()))
+        return .none
+        
+      case let .goToRepositoryDetail(repository):
+        state.path.append(.repositoryDetail(.init(repository: repository)))
         return .none
         
       case let .tabSelected(tab):
@@ -118,6 +123,7 @@ enum Path {
   case explore(ExploreReducer)
   case profile(ProfileReducer)
   case settings(SettingsReducer)
+  case repositoryDetail(RepositoryDetailReducer)
 }
 
 extension Path.State {
@@ -128,6 +134,7 @@ extension Path.State {
     case .explore: "explore"
     case .profile: "profile"
     case .settings: "settings"
+    case .repositoryDetail: "repositoryDetail"
     }
   }
 }

@@ -188,7 +188,8 @@ struct GitHubSectionHeader: View {
   var body: some View {
     HStack {
       Text(title)
-        .githubStyle(.sectionTitle)
+        .font(.githubHeadline)
+        .foregroundColor(.githubPrimaryText)
 
       Spacer()
 

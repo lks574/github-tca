@@ -211,8 +211,9 @@ struct ProfileReducer {
         }
         
       case let .repositoryTapped(repository):
-        print("리포지토리 탭됨: \(repository.name)")
-        return .none
+        return .run { _ in
+          await navigation.goToRepositoryDetail(repository)
+        }
         
       case .viewAllRepositoriesTapped:
         print("모든 리포지토리 보기")

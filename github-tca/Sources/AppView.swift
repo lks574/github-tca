@@ -49,6 +49,8 @@ struct AppView: View {
           ProfilePage.RootView(store: store)
         case .settings(let store):
           SettingsPage.RootView(store: store)
+        case .repositoryDetail(let store):
+          RepositoryDetailPage.RootView(store: store)
         }
       }
     )

@@ -4,6 +4,7 @@ import ComposableArchitecture
 struct NavigationClient {
   var goToHome: @Sendable () async -> Void
   var goToSettings: @Sendable () async -> Void
+  var goToRepositoryDetail: @Sendable (ProfileModel.RepositoryItem) async -> Void
   var signOut: @Sendable () async -> Void
 }
 
@@ -11,12 +12,14 @@ extension NavigationClient: DependencyKey {
   static var liveValue = NavigationClient(
     goToHome: { },
     goToSettings: { },
+    goToRepositoryDetail: { _ in },
     signOut: { }
   )
 
   static let testValue = NavigationClient(
     goToHome: { },
     goToSettings: { },
+    goToRepositoryDetail: { _ in },
     signOut: { }
   )
 }
