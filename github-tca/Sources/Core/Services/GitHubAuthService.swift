@@ -24,6 +24,9 @@ public protocol GitHubAuthServiceProtocol: Sendable {
 
   /// 토큰 유효성 검사
   func validateToken() async throws -> Bool
+  
+  /// 저장된 토큰으로 자동 로그인 시도
+  func restoreAuthenticationIfPossible() async throws -> GitHubAuthResult?
 }
 
 // MARK: - GitHub Auth Service Implementation
@@ -149,6 +152,56 @@ public actor GitHubAuthService: GitHubAuthServiceProtocol {
         }
       }
       return false
+    }
+  }
+  
+  public func restoreAuthenticationIfPossible() async throws -> GitHubAuthResult? {
+    #if DEBUG
+    print("🔄 저장된 인증 정보 복원 시도...")
+    #endif
+    
+    // 저장된 토큰 확인
+    guard let token = try await keychain.getToken(), !token.isEmpty else {
+      #if DEBUG
+      print("❌ 저장된 토큰이 없습니다.")
+      #endif
+      return nil
+    }
+    
+    #if DEBUG
+    print("✅ 저장된 토큰 발견: \(token.prefix(10))...")
+    #endif
+    
+    do {
+      // 토큰으로 사용자 정보 가져오기 (토큰 유효성 검사 겸용)
+      let user = try await fetchUserInfo(accessToken: token)
+      
+      #if DEBUG
+      print("✅ 토큰이 유효합니다. 사용자: \(user.login)")
+      #endif
+      
+      return GitHubAuthResult(accessToken: token, user: user)
+      
+    } catch {
+      #if DEBUG
+      print("❌ 저장된 토큰이 유효하지 않습니다: \(error)")
+      #endif
+      
+      // 유효하지 않은 토큰 삭제
+      try await keychain.deleteToken()
+      
+      if let gitHubError = error as? GitHubError {
+        switch gitHubError {
+        case .unauthorized, .tokenExpired, .tokenInvalid:
+          // 토큰 관련 오류는 nil 반환 (재로그인 유도)
+          return nil
+        default:
+          // 다른 오류는 그대로 throw
+          throw error
+        }
+      }
+      
+      throw error
     }
   }
 
@@ -473,6 +526,33 @@ public struct MockGitHubAuthService: GitHubAuthServiceProtocol {
 
   public func validateToken() async throws -> Bool {
     return true // Mock에서는 항상 유효
+  }
+  
+  public func restoreAuthenticationIfPossible() async throws -> GitHubAuthResult? {
+    // Mock에서는 항상 성공적으로 복원
+    let mockUser = GitHubUser(
+      id: 12345,
+      login: "testuser",
+      avatarUrl: "https://avatars.githubusercontent.com/u/12345?v=4",
+      url: "https://api.github.com/users/testuser",
+      htmlUrl: "https://github.com/testuser",
+      type: "User",
+      siteAdmin: false,
+      name: "Test User",
+      company: "GitHub Inc.",
+      blog: "https://github.com/testuser",
+      location: "Seoul, South Korea",
+      email: "testuser@example.com",
+      bio: "iOS Developer passionate about clean architecture and TCA",
+      publicRepos: 25,
+      publicGists: 10,
+      followers: 42,
+      following: 15,
+      createdAt: "2020-01-01T00:00:00Z",
+      updatedAt: "2024-01-15T10:30:00Z"
+    )
+    
+    return GitHubAuthResult(accessToken: "mock_restored_token", user: mockUser)
   }
 }
 

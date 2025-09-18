@@ -18,6 +18,8 @@ struct GithubTcaApp: App {
       AppView(store: store)
         .onAppear {
           setupNavigationDependency()
+          // 앱 시작 시 저장된 인증 정보 복원 시도
+          store.send(.checkStoredAuthentication)
         }
         .onOpenURL { url in
           handleIncomingURL(url)
@@ -32,6 +34,9 @@ struct GithubTcaApp: App {
       },
       goToSettings: { [store] in
         await store.send(.goToSettings)
+      },
+      signOut: { [store] in
+        await store.send(.signOut)
       }
     )
   }

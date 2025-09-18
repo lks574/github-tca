@@ -27,6 +27,9 @@ public struct GitHubAuthClient: Sendable {
   
   /// 토큰 유효성 검사
   public var validateToken: @Sendable () async throws -> Bool
+  
+  /// 저장된 토큰으로 자동 로그인 시도
+  public var restoreAuthentication: @Sendable () async throws -> GitHubAuthResult?
 }
 
 // MARK: - Auth Result
@@ -67,6 +70,9 @@ extension GitHubAuthClient: DependencyKey {
       },
       validateToken: {
         try await authService.validateToken()
+      },
+      restoreAuthentication: {
+        try await authService.restoreAuthenticationIfPossible()
       }
     )
   }()
@@ -93,6 +99,9 @@ extension GitHubAuthClient: DependencyKey {
       },
       validateToken: {
         try await mockService.validateToken()
+      },
+      restoreAuthentication: {
+        try await mockService.restoreAuthenticationIfPossible()
       }
     )
   }()

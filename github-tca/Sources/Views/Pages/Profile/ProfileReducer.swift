@@ -219,17 +219,13 @@ struct ProfileReducer {
       case .signOutConfirmed:
         state.showingSignOutAlert = false
         state.isLoading = true
-        return .run { [gitHubAuthClient] send in
-          do {
-            try await gitHubAuthClient.signOut()
-            await send(.binding(.set(\.isAuthenticated, false)))
-            await send(.binding(.set(\.isLoading, false)))
-            await send(.binding(.set(\.userProfile, .default)))
-            await send(.binding(.set(\.repositories, .default)))
-          } catch {
-            await send(.binding(.set(\.isLoading, false)))
-            await send(.binding(.set(\.errorMessage, error.localizedDescription)))
-          }
+        return .run { send in
+          // Navigation을 통해 AppReducer로 로그아웃 요청
+          await navigation.signOut()
+          await send(.binding(.set(\.isAuthenticated, false)))
+          await send(.binding(.set(\.isLoading, false)))
+          await send(.binding(.set(\.userProfile, .default)))
+          await send(.binding(.set(\.repositories, .default)))
         }
         
       case .signOutCancelled:

@@ -8,6 +8,11 @@ struct AppReducer {
     var path = StackState<Path.State>()
     @Presents var present: Present.State?
     var selectedTab: GitHubTabBar.GitHubTab = .home
+    
+    // 인증 상태
+    var isAuthenticated = false
+    var currentUser: GitHubUser?
+    var isCheckingAuthentication = false
   }
 
   enum Action {
@@ -16,6 +21,12 @@ struct AppReducer {
     case goToHome
     case goToSettings
     case tabSelected(GitHubTabBar.GitHubTab)
+    
+    // 인증 관련 액션
+    case checkStoredAuthentication
+    case authenticationRestored(GitHubAuthResult)
+    case authenticationFailed
+    case signOut
   }
 
   @Reducer(state: .equatable)
@@ -23,6 +34,8 @@ struct AppReducer {
 
   }
 
+  @Dependency(\.gitHubAuthClient) var gitHubAuthClient
+  
   var body: some ReducerOf<Self> {
     Reduce { state, action in
       switch action {
@@ -40,6 +53,43 @@ struct AppReducer {
         // 탭 변경 시 기존 스택만 초기화 (첫 화면은 root에서 표시)
         state.path = StackState()
         return .none
+        
+      // 인증 관련 액션들
+      case .checkStoredAuthentication:
+        state.isCheckingAuthentication = true
+        return .run { send in
+          do {
+            if let authResult = try await gitHubAuthClient.restoreAuthentication() {
+              await send(.authenticationRestored(authResult))
+            } else {
+              await send(.authenticationFailed)
+            }
+          } catch {
+            print("❌ 저장된 인증 복원 실패: \(error)")
+            await send(.authenticationFailed)
+          }
+        }
+        
+      case let .authenticationRestored(authResult):
+        state.isCheckingAuthentication = false
+        state.isAuthenticated = true
+        state.currentUser = authResult.user
+        print("✅ 자동 로그인 성공: \(authResult.user.login)")
+        return .none
+        
+      case .authenticationFailed:
+        state.isCheckingAuthentication = false
+        state.isAuthenticated = false
+        state.currentUser = nil
+        return .none
+        
+      case .signOut:
+        state.isAuthenticated = false
+        state.currentUser = nil
+        return .run { _ in
+          try await gitHubAuthClient.signOut()
+          print("✅ 로그아웃 완료")
+        }
         
       case .path, .present:
         return .none
