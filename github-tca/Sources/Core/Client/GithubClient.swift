@@ -42,7 +42,7 @@ extension GitHubClient: DependencyKey {
   
   /// Live 구현체 (실제 API 호출)
   public static let liveValue: GitHubClient = {
-    let service = GitHubService()
+    let service = GitHubService(authClient: GitHubAuthClient.liveValue)
     
     return GitHubClient(
       searchRepositories: { parameters in
@@ -76,28 +76,28 @@ extension GitHubClient: DependencyKey {
     )
   }()
   
-  /// Test 구현체 (Mock 데이터 사용)
+  /// Test 구현체 (실제 API 사용하되 testValue용)
   public static let testValue: GitHubClient = {
-    let mockService = MockGitHubService()
+    let service = GitHubService(authClient: GitHubAuthClient.testValue)
     
     return GitHubClient(
       searchRepositories: { parameters in
-        try await mockService.searchRepositories(parameters: parameters)
+        try await service.searchRepositories(parameters: parameters)
       },
       getRepository: { owner, repo in
-        try await mockService.getRepository(owner: owner, repo: repo)
+        try await service.getRepository(owner: owner, repo: repo)
       },
       getUser: { username in
-        try await mockService.getUser(username: username)
+        try await service.getUser(username: username)
       },
       getCurrentUser: {
-        try await mockService.getCurrentUser()
+        try await service.getCurrentUser()
       },
       getUserRepositories: { username, page, perPage in
-        try await mockService.getUserRepositories(username: username, page: page, perPage: perPage)
+        try await service.getUserRepositories(username: username, page: page, perPage: perPage)
       },
       getUserStarredRepositories: { username, page, perPage in
-        try await mockService.getUserStarredRepositories(username: username, page: page, perPage: perPage)
+        try await service.getUserStarredRepositories(username: username, page: page, perPage: perPage)
       },
       searchRepositoriesSimple: { query, page, perPage in
         let parameters = GitHubSearchParameters(
@@ -107,7 +107,7 @@ extension GitHubClient: DependencyKey {
           page: page,
           perPage: perPage
         )
-        return try await mockService.searchRepositories(parameters: parameters)
+        return try await service.searchRepositories(parameters: parameters)
       }
     )
   }()

@@ -1,4 +1,5 @@
 import Foundation
+import ComposableArchitecture
 
 // MARK: - GitHub Service Protocol
 
@@ -54,10 +55,12 @@ public actor GitHubService: GitHubServiceProtocol {
   private let baseURL: String
   private let apiVersion: String
   private let userAgent: String
+  private let authClient: GitHubAuthClient
   
   // MARK: - Initialization
   
   public init(
+    authClient: GitHubAuthClient,
     session: URLSession = .shared,
     baseURL: String = "https://api.github.com",
     apiVersion: String = "2022-11-28",
@@ -68,6 +71,7 @@ public actor GitHubService: GitHubServiceProtocol {
     configuration.timeoutIntervalForResource = 60
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
     
+    self.authClient = authClient
     self.session = URLSession(configuration: configuration)
     self.baseURL = baseURL
     self.apiVersion = apiVersion
@@ -222,9 +226,14 @@ public actor GitHubService: GitHubServiceProtocol {
     request.setValue(apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
     request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
     
-    // 인증 토큰 추가 (실제 구현에서는 Keychain에서 가져와야 함)
-    if let token = UserDefaults.standard.string(forKey: "github_access_token") {
-      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    // 인증 토큰 추가 (Keychain에서 가져오기)
+    do {
+      if let token = try await authClient.getAccessToken() {
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+      }
+    } catch {
+      // 토큰 가져오기 실패시 로그만 출력하고 계속 진행 (공개 API는 토큰 없이도 접근 가능)
+      print("⚠️ 토큰 가져오기 실패: \(error.localizedDescription)")
     }
     
     // 네트워크 요청 수행
