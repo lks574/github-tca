@@ -216,8 +216,9 @@ struct ProfileReducer {
         }
         
       case .viewAllRepositoriesTapped:
-        print("모든 리포지토리 보기")
-        return .none
+        return .run { _ in
+          await navigation.goToRepositoryList()
+        }
         
       case .signOutTapped:
         state.showingSignOutAlert = true

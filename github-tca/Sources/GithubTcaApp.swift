@@ -38,6 +38,9 @@ struct GithubTcaApp: App {
       goToRepositoryDetail: { [store] repository in
         await store.send(.goToRepositoryDetail(repository))
       },
+      goToRepositoryList: { [store] in
+        await store.send(.goToRepositoryList)
+      },
       signOut: { [store] in
         await store.send(.signOut)
       }
