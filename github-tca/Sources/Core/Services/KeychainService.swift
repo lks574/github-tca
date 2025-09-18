@@ -32,8 +32,8 @@ public actor KeychainService: KeychainServiceProtocol {
   // MARK: - Initialization
   
   public init(
-    service: String = "com.github.tca.app",
-    account: String = "github_access_token"
+    service: String = GitHubConfig.keychainService,
+    account: String = GitHubConfig.keychainAccount
   ) {
     self.service = service
     self.account = account
@@ -42,21 +42,69 @@ public actor KeychainService: KeychainServiceProtocol {
   // MARK: - Public Methods
   
   public func store(token: String) async throws {
-    // 실제 구현에서는 Keychain에 토큰을 안전하게 저장
-    // 현재는 UserDefaults로 시뮬레이션 (보안상 권장하지 않음)
-    UserDefaults.standard.set(token, forKey: account)
+    let tokenData = token.data(using: .utf8)!
+    
+    // 기존 항목 삭제 (있다면)
+    let deleteQuery: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: account
+    ]
+    SecItemDelete(deleteQuery as CFDictionary)
+    
+    // 새 항목 추가
+    let addQuery: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: account,
+      kSecValueData as String: tokenData,
+      kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    ]
+    
+    let status = SecItemAdd(addQuery as CFDictionary, nil)
+    guard status == errSecSuccess else {
+      throw GitHubError.unknown("키체인 저장 실패: \(status)")
+    }
   }
   
   public func getToken() async throws -> String? {
-    // 실제 구현에서는 Keychain에서 토큰을 안전하게 가져옴
-    // 현재는 UserDefaults에서 가져옴 (보안상 권장하지 않음)
-    return UserDefaults.standard.string(forKey: account)
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: account,
+      kSecReturnData as String: true,
+      kSecMatchLimit as String: kSecMatchLimitOne
+    ]
+    
+    var result: AnyObject?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    
+    guard status == errSecSuccess else {
+      if status == errSecItemNotFound {
+        return nil
+      }
+      throw GitHubError.unknown("키체인 읽기 실패: \(status)")
+    }
+    
+    guard let tokenData = result as? Data,
+          let token = String(data: tokenData, encoding: .utf8) else {
+      throw GitHubError.unknown("키체인 데이터 변환 실패")
+    }
+    
+    return token
   }
   
   public func deleteToken() async throws {
-    // 실제 구현에서는 Keychain에서 토큰을 안전하게 삭제
-    // 현재는 UserDefaults에서 삭제 (보안상 권장하지 않음)
-    UserDefaults.standard.removeObject(forKey: account)
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: account
+    ]
+    
+    let status = SecItemDelete(query as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      throw GitHubError.unknown("키체인 삭제 실패: \(status)")
+    }
   }
   
   public func hasToken() async throws -> Bool {

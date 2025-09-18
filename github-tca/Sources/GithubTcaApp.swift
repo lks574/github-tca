@@ -19,6 +19,9 @@ struct GithubTcaApp: App {
         .onAppear {
           setupNavigationDependency()
         }
+        .onOpenURL { url in
+          handleIncomingURL(url)
+        }
     }
   }
   
@@ -31,5 +34,17 @@ struct GithubTcaApp: App {
         await store.send(.goToSettings)
       }
     )
+  }
+  
+  private func handleIncomingURL(_ url: URL) {
+    // GitHub OAuth 콜백 URL 처리
+    guard url.scheme == "github-tca",
+          url.host == "oauth" else {
+      print("⚠️ 지원하지 않는 URL 스키마: \(url)")
+      return
+    }
+    
+    print("✅ GitHub OAuth 콜백 URL 수신: \(url)")
+    // 실제로는 OAuth 플로우를 완료하는 로직이 ASWebAuthenticationSession에서 처리됨
   }
 }
