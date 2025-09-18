@@ -32,6 +32,10 @@ let project = Project(
       ],
       dependencies: [
         .package(product: "ComposableArchitecture")
+      ],
+      environmentVariables: [
+        "GITHUB_CLIENT_ID" : "Ov23li3PdoDXMFSa3RHk",
+        "GITHUB_CLIENT_SECRET": "f6da80ca88adb5cc6f2ea44ba7b1818257482cc3",
       ]
     ),
     .target(
@@ -43,7 +47,11 @@ let project = Project(
       buildableFolders: [
         "github-tca/Tests"
       ],
-      dependencies: [.target(name: "github-tca")]
+      dependencies: [.target(name: "github-tca")],
+      environmentVariables: [
+        "GITHUB_CLIENT_ID" : "Ov23li3PdoDXMFSa3RHk",
+        "GITHUB_CLIENT_SECRET": "f6da80ca88adb5cc6f2ea44ba7b1818257482cc3",
+      ]
     ),
   ]
 )
