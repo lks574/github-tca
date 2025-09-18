@@ -27,19 +27,6 @@ public struct GitHubAuthClient: Sendable {
   
   /// 토큰 유효성 검사
   public var validateToken: @Sendable () async throws -> Bool
-  
-  /// 인증 상태 변경 알림 (Combine Publisher 등을 통한 실시간 알림)
-  public var authStateChanged: @Sendable () -> AsyncStream<AuthState> = { AsyncStream { _ in } }
-}
-
-// MARK: - Auth State
-
-public enum AuthState: Equatable, Sendable {
-  case unauthenticated
-  case authenticating
-  case authenticated(GitHubUser)
-  case tokenExpired
-  case error(GitHubError)
 }
 
 // MARK: - Auth Result
@@ -80,9 +67,6 @@ extension GitHubAuthClient: DependencyKey {
       },
       validateToken: {
         try await authService.validateToken()
-      },
-      authStateChanged: {
-        authService.authStateChanged()
       }
     )
   }()
@@ -109,9 +93,6 @@ extension GitHubAuthClient: DependencyKey {
       },
       validateToken: {
         try await mockService.validateToken()
-      },
-      authStateChanged: {
-        mockService.authStateChanged()
       }
     )
   }()
