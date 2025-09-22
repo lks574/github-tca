@@ -41,6 +41,9 @@ struct GithubTcaApp: App {
       goToRepositoryList: { [store] in
         await store.send(.goToRepositoryList)
       },
+      goToNotificationDetail: { [store] notification in
+        await store.send(.goToNotificationDetail(notification))
+      },
       signOut: { [store] in
         await store.send(.signOut)
       }

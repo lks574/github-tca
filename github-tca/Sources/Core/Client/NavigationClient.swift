@@ -6,6 +6,7 @@ struct NavigationClient {
   var goToSettings: @Sendable () async -> Void
   var goToRepositoryDetail: @Sendable (ProfileModel.RepositoryItem) async -> Void
   var goToRepositoryList: @Sendable () async -> Void
+  var goToNotificationDetail: @Sendable (NotificationsModel.NotificationItem) async -> Void
   var signOut: @Sendable () async -> Void
 }
 
@@ -15,6 +16,7 @@ extension NavigationClient: DependencyKey {
     goToSettings: { },
     goToRepositoryDetail: { _ in },
     goToRepositoryList: { },
+    goToNotificationDetail: { _ in },
     signOut: { }
   )
 
@@ -23,6 +25,7 @@ extension NavigationClient: DependencyKey {
     goToSettings: { },
     goToRepositoryDetail: { _ in },
     goToRepositoryList: { },
+    goToNotificationDetail: { _ in },
     signOut: { }
   )
 }

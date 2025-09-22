@@ -102,9 +102,9 @@ struct NotificationsReducer {
         }
         
       case let .notificationTapped(notification):
-        // 알림을 읽음으로 표시하고 해당 페이지로 이동
-        return .run { send in
-          await send(.markAsRead(notification))
+        // 알림을 읽음으로 표시하고 상세 화면으로 이동
+        return .run { _ in
+          await navigation.goToNotificationDetail(notification)
           print("알림 탭됨: \(notification.title)")
         }
         

@@ -22,6 +22,7 @@ struct AppReducer {
     case goToSettings
     case goToRepositoryDetail(ProfileModel.RepositoryItem)
     case goToRepositoryList
+    case goToNotificationDetail(NotificationsModel.NotificationItem)
     case tabSelected(GitHubTabBar.GitHubTab)
     
     // 인증 관련 액션
@@ -55,6 +56,10 @@ struct AppReducer {
         
       case .goToRepositoryList:
         state.path.append(.repositoryList(.init()))
+        return .none
+        
+      case let .goToNotificationDetail(notification):
+        state.path.append(.notificationDetail(.init(notification: notification)))
         return .none
         
       case let .tabSelected(tab):
@@ -130,6 +135,7 @@ enum Path {
   case settings(SettingsReducer)
   case repositoryDetail(RepositoryDetailReducer)
   case repositoryList(RepositoryListReducer)
+  case notificationDetail(NotificationDetailReducer)
 }
 
 extension Path.State {
@@ -142,6 +148,7 @@ extension Path.State {
     case .settings: "settings"
     case .repositoryDetail: "repositoryDetail"
     case .repositoryList: "repositoryList"
+    case .notificationDetail: "notificationDetail"
     }
   }
 }

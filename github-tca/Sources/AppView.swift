@@ -53,6 +53,8 @@ struct AppView: View {
           RepositoryDetailPage.RootView(store: store)
         case .repositoryList(let store):
           RepositoryListPage.RootView(store: store)
+        case .notificationDetail(let store):
+          NotificationDetailPage.RootView(store: store)
         }
       }
     )
