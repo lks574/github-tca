@@ -23,7 +23,14 @@ enum NotificationsPage {
             .frame(height: 0)
             
             // 필터 섹션 (스크롤됨)
-            FilterSection(store: store)
+            FilterSection(
+              selectedFilter: store.selectedFilter,
+              unreadCount: store.unreadCount,
+              repositoryFilters: store.repositoryFilters,
+              selectedRepository: store.selectedRepository,
+              onFilterChanged: { store.send(.filterChanged($0)) },
+              onRepositoryFilterChanged: { store.send(.repositoryFilterChanged($0)) }
+            )
             
             // 안내 메시지 (스크롤 시 숨김)
             if showPromptSection {
@@ -128,7 +135,12 @@ enum NotificationsPage {
   
   // MARK: - Filter Section
   private struct FilterSection: View {
-    @Bindable var store: StoreOf<NotificationsReducer>
+    let selectedFilter: NotificationsModel.FilterType
+    let unreadCount: Int
+    let repositoryFilters: [NotificationsModel.RepositoryFilter]
+    let selectedRepository: String?
+    let onFilterChanged: (NotificationsModel.FilterType) -> Void
+    let onRepositoryFilterChanged: (String?) -> Void
     
     var body: some View {
       // 필터 버튼들 (검색바 제거)
@@ -137,27 +149,27 @@ enum NotificationsPage {
           ForEach(NotificationsModel.FilterType.allCases, id: \.rawValue) { filter in
             FilterButton(
               title: filter.title,
-              isSelected: store.selectedFilter == filter,
-              count: filter == .unread ? store.unreadCount : nil
+              isSelected: selectedFilter == filter,
+              count: filter == .unread ? unreadCount : nil
             ) {
-              store.send(.filterChanged(filter))
+              onFilterChanged(filter)
             }
           }
           
           // 리포지토리 필터
           Menu {
             Button("모든 리포지토리") {
-              store.send(.repositoryFilterChanged(nil))
+              onRepositoryFilterChanged(nil)
             }
             
-            ForEach(store.repositoryFilters) { repo in
+            ForEach(repositoryFilters) { repo in
               Button("\(repo.name) (\(repo.count))") {
-                store.send(.repositoryFilterChanged(repo.name))
+                onRepositoryFilterChanged(repo.name)
               }
             }
           } label: {
             HStack(spacing: GitHubSpacing.xs) {
-              Text(store.selectedRepository ?? "리포지토리")
+              Text(selectedRepository ?? "리포지토리")
               Image(systemName: "chevron.down")
                 .font(.system(size: GitHubIconSize.small))
             }

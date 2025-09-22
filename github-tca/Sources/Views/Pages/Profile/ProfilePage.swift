@@ -50,7 +50,13 @@ enum ProfilePage {
       ScrollView {
         VStack(spacing: GitHubSpacing.lg) {
           // 프로필 헤더
-          ProfileHeader(store: store)
+          ProfileHeader(
+            userProfile: store.userProfile,
+            isAuthenticated: store.isAuthenticated,
+            onSignInTapped: { store.send(.signInTapped) },
+            onEditProfileTapped: { store.send(.editProfileTapped) },
+            onShareProfileTapped: { store.send(.shareProfileTapped) }
+          )
           
           // 통계 섹션
           ProfileStats(userProfile: store.userProfile)
@@ -156,14 +162,18 @@ enum ProfilePage {
   
   // MARK: - Profile Header
   private struct ProfileHeader: View {
-    @Bindable var store: StoreOf<ProfileReducer>
+    let userProfile: ProfileModel.UserProfile
+    let isAuthenticated: Bool
+    let onSignInTapped: () -> Void
+    let onEditProfileTapped: () -> Void
+    let onShareProfileTapped: () -> Void
     
     var body: some View {
       VStack(spacing: GitHubSpacing.md) {
         // 아바타 및 기본 정보
         HStack(spacing: GitHubSpacing.md) {
           // 아바타
-          AsyncImage(url: URL(string: store.userProfile.avatar ?? "")) { image in
+          AsyncImage(url: URL(string: userProfile.avatar ?? "")) { image in
             image
               .resizable()
               .aspectRatio(contentMode: .fill)
@@ -171,7 +181,7 @@ enum ProfilePage {
             Circle()
               .fill(Color.githubGreen)
               .overlay(
-                Text(String(store.userProfile.displayName.prefix(1)))
+                Text(String(userProfile.displayName.prefix(1)))
                   .font(.system(size: 32, weight: .bold))
                   .foregroundColor(.white)
               )
@@ -180,16 +190,16 @@ enum ProfilePage {
           .clipShape(Circle())
           
           VStack(alignment: .leading, spacing: GitHubSpacing.xs) {
-            Text(store.userProfile.displayName)
+            Text(userProfile.displayName)
               .font(.githubTitle2)
               .fontWeight(.bold)
               .foregroundColor(.githubPrimaryText)
             
-            Text(store.userProfile.username)
+            Text(userProfile.username)
               .font(.githubSubheadline)
               .foregroundColor(.githubSecondaryText)
             
-            if let company = store.userProfile.company {
+            if let company = userProfile.company {
               HStack(spacing: GitHubSpacing.xs) {
                 Image(systemName: "building.2")
                   .font(.system(size: GitHubIconSize.small))
@@ -206,7 +216,7 @@ enum ProfilePage {
         }
         
         // 상태 메시지
-        if let bio = store.userProfile.bio {
+        if let bio = userProfile.bio {
           HStack(spacing: GitHubSpacing.sm) {
             Image(systemName: "face.smiling")
               .font(.system(size: GitHubIconSize.medium))
@@ -218,7 +228,7 @@ enum ProfilePage {
               .frame(maxWidth: .infinity, alignment: .leading)
             
             Button {
-              store.send(.editProfileTapped)
+              onEditProfileTapped()
             } label: {
               Image(systemName: "pencil")
                 .font(.system(size: GitHubIconSize.small))
@@ -240,7 +250,7 @@ enum ProfilePage {
               .font(.system(size: GitHubIconSize.small))
               .foregroundColor(.githubSecondaryText)
             
-            Text("\(store.userProfile.followerCount) 팔로워")
+            Text("\(userProfile.followerCount) 팔로워")
               .font(.githubSubheadline)
               .foregroundColor(.githubSecondaryText)
           }
@@ -248,7 +258,7 @@ enum ProfilePage {
           Text("·")
             .foregroundColor(.githubTertiaryText)
           
-          Text("\(store.userProfile.followingCount) 팔로우하는 중")
+          Text("\(userProfile.followingCount) 팔로우하는 중")
             .font(.githubSubheadline)
             .foregroundColor(.githubSecondaryText)
           
