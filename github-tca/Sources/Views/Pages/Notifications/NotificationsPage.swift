@@ -168,23 +168,29 @@ enum NotificationsPage {
     var body: some View {
       Button(action: onTap) {
         HStack(spacing: GitHubSpacing.md) {
-          // 읽음/읽지 않음 표시
-          Circle()
-            .fill(notification.isUnread ? Color.githubBlue : Color.clear)
-            .frame(width: 8, height: 8)
+          // GitHub 스타일 아이콘
+          GitHubNotificationIcon(type: notification.type)
           
-          // 아이콘
-          Image(systemName: notification.type.icon)
-            .font(.system(size: GitHubIconSize.medium))
-            .foregroundColor(notification.type.iconColor)
-            .frame(width: GitHubIconSize.avatar, height: GitHubIconSize.avatar)
-          
-          // 내용
+          // 메인 내용
           VStack(alignment: .leading, spacing: GitHubSpacing.xxs) {
+            // 리포지토리 정보와 시간
             HStack {
-              Text(notification.repository)
-                .font(.githubSubheadline)
-                .foregroundColor(.githubSecondaryText)
+              // 읽음/읽지 않음 표시 원
+              Circle()
+                .fill(notification.isUnread ? Color.githubBlue : Color.clear)
+                .frame(width: 8, height: 8)
+              
+              HStack(spacing: 4) {
+                Text(formatRepositoryName(notification.repository))
+                  .font(.githubCaption)
+                  .foregroundColor(.githubSecondaryText)
+                
+                if let issueNumber = notification.issueNumber {
+                  Text(issueNumber)
+                    .font(.githubCaption)
+                    .foregroundColor(.githubSecondaryText)
+                }
+              }
               
               Spacer()
               
@@ -193,35 +199,154 @@ enum NotificationsPage {
                 .foregroundColor(.githubTertiaryText)
             }
             
+            // 제목
             Text(notification.title)
-              .font(.githubSubheadline)
-              .fontWeight(notification.isUnread ? .medium : .regular)
-              .foregroundColor(notification.isUnread ? .githubPrimaryText : .githubSecondaryText)
+              .font(.githubCallout)
+              .fontWeight(notification.isUnread ? .semibold : .regular)
+              .foregroundColor(.githubPrimaryText)
               .multilineTextAlignment(.leading)
-              .lineLimit(2)
+              .lineLimit(nil)
             
+            // 부제목 (작업명 등)
             if !notification.subtitle.isEmpty {
-              Text(notification.subtitle)
-                .font(.githubCaption)
-                .foregroundColor(.githubTertiaryText)
-                .lineLimit(1)
+              HStack(spacing: GitHubSpacing.xs) {
+                Text(notification.avatar)
+                  .font(.githubCaption)
+                
+                Text(notification.subtitle)
+                  .font(.githubCaption)
+                  .foregroundColor(.githubSecondaryText)
+              }
             }
           }
           
-          // 화살표
-          Image(systemName: "chevron.right")
-            .font(.system(size: GitHubIconSize.small))
-            .foregroundColor(.githubTertiaryText)
+          // 오른쪽 배지 (알림 개수)
+          if notification.isUnread {
+            NotificationBadge(count: getNotificationCount(for: notification))
+          }
         }
         .padding(.horizontal, GitHubSpacing.screenPadding)
         .padding(.vertical, GitHubSpacing.md)
-        .background(
-          notification.isUnread ? 
-            Color.githubBlue.opacity(0.05) : 
-            Color.githubBackground
-        )
+        .background(Color.githubBackground)
       }
       .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func formatRepositoryName(_ repository: String) -> String {
+      // "owner/repo" 형식을 "owner / repo" 로 변환
+      return repository.replacingOccurrences(of: "/", with: " / ")
+    }
+    
+    private func getNotificationCount(for notification: NotificationsModel.NotificationItem) -> Int {
+      // 실제로는 API에서 받아와야 하지만, 임시로 랜덤 값 사용
+      switch notification.type {
+      case .issue, .pullRequest:
+        return Int.random(in: 1...9)
+      case .release:
+        return 1
+      default:
+        return Int.random(in: 1...5)
+      }
+    }
+  }
+  
+  // MARK: - GitHub Notification Icon
+  private struct GitHubNotificationIcon: View {
+    let type: NotificationsModel.NotificationItem.NotificationType
+    
+    var body: some View {
+      ZStack {
+        Circle()
+          .fill(iconBackgroundColor)
+          .frame(width: 32, height: 32)
+        
+        Image(systemName: iconName)
+          .font(.system(size: 14, weight: .medium))
+          .foregroundColor(iconColor)
+      }
+    }
+    
+    private var iconName: String {
+      switch type {
+      case .issue:
+        return "exclamationmark.circle"
+      case .pullRequest:
+        return "arrow.triangle.merge"
+      case .release:
+        return "tag"
+      case .commit:
+        return "circle"
+      case .discussion:
+        return "bubble.left.and.bubble.right"
+      case .checkSuite:
+        return "checkmark.circle"
+      case .repositoryVulnerabilityAlert:
+        return "shield.lefthalf.filled"
+      case .unknown:
+        return "bell"
+      }
+    }
+    
+    private var iconColor: Color {
+      switch type {
+      case .issue:
+        return .white
+      case .pullRequest:
+        return .white
+      case .release:
+        return .white
+      case .commit:
+        return .githubSecondaryText
+      case .discussion:
+        return .white
+      case .checkSuite:
+        return .white
+      case .repositoryVulnerabilityAlert:
+        return .white
+      case .unknown:
+        return .white
+      }
+    }
+    
+    private var iconBackgroundColor: Color {
+      switch type {
+      case .issue:
+        return .githubGreen
+      case .pullRequest:
+        return .githubBlue
+      case .release:
+        return .githubOrange
+      case .commit:
+        return .githubTertiaryBackground
+      case .discussion:
+        return .githubPurple
+      case .checkSuite:
+        return .githubGreen
+      case .repositoryVulnerabilityAlert:
+        return .githubRed
+      case .unknown:
+        return .githubSecondaryText
+      }
+    }
+  }
+  
+  // MARK: - Notification Badge
+  private struct NotificationBadge: View {
+    let count: Int
+    
+    var body: some View {
+      if count > 0 {
+        Text("\(count)")
+          .font(.system(size: 12, weight: .semibold))
+          .foregroundColor(.white)
+          .padding(.horizontal, count > 9 ? 6 : 4)
+          .padding(.vertical, 2)
+          .background(
+            RoundedRectangle(cornerRadius: 10)
+              .fill(Color.githubBlue)
+          )
+          .frame(minWidth: 20, minHeight: 16)
+      }
     }
   }
   
@@ -239,11 +364,13 @@ enum NotificationsPage {
             .foregroundColor(.githubTertiaryText)
           
           Text(emptyStateTitle)
-            .githubStyle(.primaryText)
+            .font(.githubTitle3)
+            .foregroundColor(.githubPrimaryText)
             .multilineTextAlignment(.center)
           
           Text(emptyStateSubtitle)
-            .githubStyle(.secondaryText)
+            .font(.githubCallout)
+            .foregroundColor(.githubSecondaryText)
             .multilineTextAlignment(.center)
         }
         .padding(.horizontal, GitHubSpacing.screenPadding)

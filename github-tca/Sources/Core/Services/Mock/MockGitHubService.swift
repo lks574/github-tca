@@ -224,4 +224,110 @@ public struct MockGitHubService: GitHubServiceProtocol {
   public func searchUserRepositories(query: String) async throws -> [ProfileModel.RepositoryItem] {
     .default
   }
+  
+  // MARK: - Notification Methods
+  
+  public func getNotifications(all: Bool, participating: Bool, since: String?, before: String?, page: Int, perPage: Int) async throws -> [GitHubNotification] {
+    // Mock 알림 데이터
+    let mockUser = GitHubUser(
+      id: 1,
+      login: "octocat",
+      avatarUrl: "https://avatars.githubusercontent.com/u/583231?v=4",
+      url: "https://api.github.com/users/octocat",
+      htmlUrl: "https://github.com/octocat",
+      type: "User",
+      siteAdmin: false
+    )
+    
+    let mockRepository = GitHubNotification.NotificationRepository(
+      id: 1296269,
+      name: "Hello-World",
+      fullName: "octocat/Hello-World",
+      owner: mockUser,
+      private: false,
+      htmlUrl: "https://github.com/octocat/Hello-World",
+      description: "This your first repo!"
+    )
+    
+    let mockNotifications = [
+      GitHubNotification(
+        id: "1",
+        unread: true,
+        reason: "subscribed",
+        updatedAt: "2024-01-15T14:58:00Z",
+        lastReadAt: nil,
+        subject: GitHubNotification.Subject(
+          title: "Greetings",
+          url: "https://api.github.com/repos/octocat/Hello-World/issues/1347",
+          latestCommentUrl: "https://api.github.com/repos/octocat/Hello-World/issues/comments/1",
+          type: "Issue"
+        ),
+        repository: mockRepository,
+        url: "https://api.github.com/notifications/threads/1",
+        subscriptionUrl: "https://api.github.com/notifications/threads/1/subscription"
+      ),
+      GitHubNotification(
+        id: "2",
+        unread: true,
+        reason: "mention",
+        updatedAt: "2024-01-15T10:30:00Z",
+        lastReadAt: nil,
+        subject: GitHubNotification.Subject(
+          title: "Add new feature",
+          url: "https://api.github.com/repos/octocat/Hello-World/pulls/42",
+          latestCommentUrl: "https://api.github.com/repos/octocat/Hello-World/pulls/comments/1",
+          type: "PullRequest"
+        ),
+        repository: mockRepository,
+        url: "https://api.github.com/notifications/threads/2",
+        subscriptionUrl: "https://api.github.com/notifications/threads/2/subscription"
+      ),
+      GitHubNotification(
+        id: "3",
+        unread: false,
+        reason: "author",
+        updatedAt: "2024-01-14T16:20:00Z",
+        lastReadAt: "2024-01-14T18:00:00Z",
+        subject: GitHubNotification.Subject(
+          title: "v1.0.0",
+          url: "https://api.github.com/repos/octocat/Hello-World/releases/1",
+          latestCommentUrl: nil,
+          type: "Release"
+        ),
+        repository: mockRepository,
+        url: "https://api.github.com/notifications/threads/3",
+        subscriptionUrl: "https://api.github.com/notifications/threads/3/subscription"
+      )
+    ]
+    
+    // 필터링 적용
+    var filteredNotifications = mockNotifications
+    
+    if !all {
+      filteredNotifications = filteredNotifications.filter { $0.unread }
+    }
+    
+    if participating {
+      filteredNotifications = filteredNotifications.filter { notification in
+        ["mention", "assign", "review_requested", "author"].contains(notification.reason)
+      }
+    }
+    
+    return filteredNotifications
+  }
+  
+  public func markNotificationAsRead(threadId: String) async throws -> Void {
+    // Mock: 읽음 처리 시뮬레이션
+    print("✅ Mock: 알림 \(threadId) 읽음 처리 완료")
+  }
+  
+  public func markAllNotificationsAsRead(lastReadAt: String?) async throws -> Void {
+    // Mock: 모든 알림 읽음 처리 시뮬레이션
+    print("✅ Mock: 모든 알림 읽음 처리 완료")
+  }
+  
+  public func markRepositoryNotificationsAsRead(owner: String, repo: String, lastReadAt: String?) async throws -> Void {
+    // Mock: 리포지토리 알림 읽음 처리 시뮬레이션
+    print("✅ Mock: \(owner)/\(repo) 알림 읽음 처리 완료")
+  }
 }

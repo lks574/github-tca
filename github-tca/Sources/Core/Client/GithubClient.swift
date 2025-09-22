@@ -36,6 +36,20 @@ public struct GitHubClient: Sendable {
   /// 현재 사용자의 리포지토리 검색
   public var searchUserRepositories: @Sendable (_ query: String) async throws -> [ProfileModel.RepositoryItem]
   
+  // MARK: - Notification Operations
+  
+  /// 현재 사용자의 알림 목록 조회
+  public var getNotifications: @Sendable (_ all: Bool, _ participating: Bool, _ since: String?, _ before: String?, _ page: Int, _ perPage: Int) async throws -> [GitHubNotification]
+  
+  /// 특정 알림을 읽음으로 표시
+  public var markNotificationAsRead: @Sendable (_ threadId: String) async throws -> Void
+  
+  /// 모든 알림을 읽음으로 표시
+  public var markAllNotificationsAsRead: @Sendable (_ lastReadAt: String?) async throws -> Void
+  
+  /// 특정 리포지토리의 알림을 읽음으로 표시
+  public var markRepositoryNotificationsAsRead: @Sendable (_ owner: String, _ repo: String, _ lastReadAt: String?) async throws -> Void
+  
   // MARK: - Convenience Methods
   
   /// 간단한 레포지토리 검색 (기본 파라미터 사용)
@@ -74,6 +88,18 @@ extension GitHubClient: DependencyKey {
       },
       searchUserRepositories: { query in
         try await service.searchUserRepositories(query: query)
+      },
+      getNotifications: { all, participating, since, before, page, perPage in
+        try await service.getNotifications(all: all, participating: participating, since: since, before: before, page: page, perPage: perPage)
+      },
+      markNotificationAsRead: { threadId in
+        try await service.markNotificationAsRead(threadId: threadId)
+      },
+      markAllNotificationsAsRead: { lastReadAt in
+        try await service.markAllNotificationsAsRead(lastReadAt: lastReadAt)
+      },
+      markRepositoryNotificationsAsRead: { owner, repo, lastReadAt in
+        try await service.markRepositoryNotificationsAsRead(owner: owner, repo: repo, lastReadAt: lastReadAt)
       },
       searchRepositoriesSimple: { query, page, perPage in
         let parameters = GitHubSearchParameters(
@@ -116,6 +142,18 @@ extension GitHubClient: DependencyKey {
       },
       searchUserRepositories: { query in
         try await service.searchUserRepositories(query: query)
+      },
+      getNotifications: { all, participating, since, before, page, perPage in
+        try await service.getNotifications(all: all, participating: participating, since: since, before: before, page: page, perPage: perPage)
+      },
+      markNotificationAsRead: { threadId in
+        try await service.markNotificationAsRead(threadId: threadId)
+      },
+      markAllNotificationsAsRead: { lastReadAt in
+        try await service.markAllNotificationsAsRead(lastReadAt: lastReadAt)
+      },
+      markRepositoryNotificationsAsRead: { owner, repo, lastReadAt in
+        try await service.markRepositoryNotificationsAsRead(owner: owner, repo: repo, lastReadAt: lastReadAt)
       },
       searchRepositoriesSimple: { query, page, perPage in
         let parameters = GitHubSearchParameters(

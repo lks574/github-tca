@@ -57,6 +57,34 @@ public protocol GitHubServiceProtocol: Sendable {
   /// - Parameter query: 검색 쿼리
   /// - Returns: 검색된 리포지토리 목록
   func searchUserRepositories(query: String) async throws -> [ProfileModel.RepositoryItem]
+  
+  // MARK: - Notification Operations
+  
+  /// 현재 사용자의 알림 목록 조회
+  /// - Parameters:
+  ///   - all: 모든 알림 여부
+  ///   - participating: 참여 중인 알림만 여부
+  ///   - since: 특정 시간 이후의 알림
+  ///   - before: 특정 시간 이전의 알림
+  ///   - page: 페이지 번호
+  ///   - perPage: 페이지당 항목 수
+  /// - Returns: 알림 목록
+  func getNotifications(all: Bool, participating: Bool, since: String?, before: String?, page: Int, perPage: Int) async throws -> [GitHubNotification]
+  
+  /// 특정 알림을 읽음으로 표시
+  /// - Parameter threadId: 알림 스레드 ID
+  func markNotificationAsRead(threadId: String) async throws -> Void
+  
+  /// 모든 알림을 읽음으로 표시
+  /// - Parameter lastReadAt: 마지막 읽은 시간
+  func markAllNotificationsAsRead(lastReadAt: String?) async throws -> Void
+  
+  /// 특정 리포지토리의 알림을 읽음으로 표시
+  /// - Parameters:
+  ///   - owner: 리포지토리 소유자
+  ///   - repo: 리포지토리 이름
+  ///   - lastReadAt: 마지막 읽은 시간
+  func markRepositoryNotificationsAsRead(owner: String, repo: String, lastReadAt: String?) async throws -> Void
 }
 
 // MARK: - GitHub Service Implementation
@@ -409,5 +437,130 @@ public actor GitHubService: GitHubServiceProtocol {
     let relativeFormatter = RelativeDateTimeFormatter()
     relativeFormatter.dateTimeStyle = .named
     return relativeFormatter.localizedString(for: date, relativeTo: Date())
+  }
+  
+  // MARK: - Notification Methods
+  
+  /// 현재 사용자의 알림 목록 조회
+  public func getNotifications(all: Bool, participating: Bool, since: String?, before: String?, page: Int, perPage: Int) async throws -> [GitHubNotification] {
+    var urlComponents = URLComponents(string: "\(baseURL)/notifications")!
+    var queryItems: [URLQueryItem] = [
+      URLQueryItem(name: "page", value: "\(page)"),
+      URLQueryItem(name: "per_page", value: "\(perPage)")
+    ]
+    
+    if all {
+      queryItems.append(URLQueryItem(name: "all", value: "true"))
+    }
+    
+    if participating {
+      queryItems.append(URLQueryItem(name: "participating", value: "true"))
+    }
+    
+    if let since = since {
+      queryItems.append(URLQueryItem(name: "since", value: since))
+    }
+    
+    if let before = before {
+      queryItems.append(URLQueryItem(name: "before", value: before))
+    }
+    
+    urlComponents.queryItems = queryItems
+    
+    print("🔗 알림 API 호출: \(urlComponents.url?.absoluteString ?? "invalid URL")")
+    
+    let notifications: [GitHubNotification] = try await performAuthenticatedRequest(url: urlComponents.url!, responseType: [GitHubNotification].self)
+    
+    print("✅ 알림 \(notifications.count)개 수신")
+    return notifications
+  }
+  
+  /// 특정 알림을 읽음으로 표시
+  public func markNotificationAsRead(threadId: String) async throws -> Void {
+    let url = URL(string: "\(baseURL)/notifications/threads/\(threadId)")!
+    
+    var request = URLRequest(url: url)
+    request.httpMethod = "PATCH"
+    request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+    request.setValue(apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
+    request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+    
+    // 인증 토큰 추가
+    if let token = try await authClient.getAccessToken() {
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
+    
+    let (_, response) = try await session.data(for: request)
+    
+    guard let httpResponse = response as? HTTPURLResponse,
+          200...299 ~= httpResponse.statusCode else {
+      throw GitHubError.invalidResponse
+    }
+    
+    print("✅ 알림 읽음 처리 완료: \(threadId)")
+  }
+  
+  /// 모든 알림을 읽음으로 표시
+  public func markAllNotificationsAsRead(lastReadAt: String?) async throws -> Void {
+    let url = URL(string: "\(baseURL)/notifications")!
+    
+    var request = URLRequest(url: url)
+    request.httpMethod = "PUT"
+    request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+    request.setValue(apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
+    request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+    
+    // 인증 토큰 추가
+    if let token = try await authClient.getAccessToken() {
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
+    
+    // 요청 바디에 lastReadAt 포함
+    if let lastReadAt = lastReadAt {
+      let body = ["last_read_at": lastReadAt]
+      request.httpBody = try JSONSerialization.data(withJSONObject: body)
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    }
+    
+    let (_, response) = try await session.data(for: request)
+    
+    guard let httpResponse = response as? HTTPURLResponse,
+          200...299 ~= httpResponse.statusCode else {
+      throw GitHubError.invalidResponse
+    }
+    
+    print("✅ 모든 알림 읽음 처리 완료")
+  }
+  
+  /// 특정 리포지토리의 알림을 읽음으로 표시
+  public func markRepositoryNotificationsAsRead(owner: String, repo: String, lastReadAt: String?) async throws -> Void {
+    let url = URL(string: "\(baseURL)/repos/\(owner)/\(repo)/notifications")!
+    
+    var request = URLRequest(url: url)
+    request.httpMethod = "PUT"
+    request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+    request.setValue(apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
+    request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+    
+    // 인증 토큰 추가
+    if let token = try await authClient.getAccessToken() {
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
+    
+    // 요청 바디에 lastReadAt 포함
+    if let lastReadAt = lastReadAt {
+      let body = ["last_read_at": lastReadAt]
+      request.httpBody = try JSONSerialization.data(withJSONObject: body)
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    }
+    
+    let (_, response) = try await session.data(for: request)
+    
+    guard let httpResponse = response as? HTTPURLResponse,
+          200...299 ~= httpResponse.statusCode else {
+      throw GitHubError.invalidResponse
+    }
+    
+    print("✅ 리포지토리 알림 읽음 처리 완료: \(owner)/\(repo)")
   }
 }

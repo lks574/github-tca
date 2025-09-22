@@ -4,6 +4,7 @@ import SwiftUI
 @Reducer
 struct NotificationsReducer {
   @Dependency(\.navigation) var navigation
+  @Dependency(\.gitHubClient) var gitHubClient
   
   @ObservableState
   struct State: Equatable {
@@ -38,9 +39,9 @@ struct NotificationsReducer {
       case .unread:
         filtered = filtered.filter { $0.isUnread }
       case .participating:
-        // 참여 중인 알림만 (예: 멘션, 리뷰 요청 등)
+        // 참여 중인 알림만 (mention, assign, review_requested 등)
         filtered = filtered.filter { notification in
-          [.mention, .review].contains(notification.type)
+          ["mention", "assign", "review_requested", "author"].contains(notification.reason)
         }
       }
       
@@ -63,6 +64,11 @@ struct NotificationsReducer {
     case filterChanged(NotificationsModel.FilterType)
     case repositoryFilterChanged(String?)
     case clearAllNotifications
+    
+    // API 응답 액션들
+    case notificationsResponse(Result<[GitHubNotification], Error>)
+    case markAsReadResponse(Result<Void, Error>)
+    case markAllAsReadResponse(Result<Void, Error>)
   }
   
   var body: some ReducerOf<Self> {
@@ -75,18 +81,32 @@ struct NotificationsReducer {
         
       case .loadNotifications:
         state.isLoading = true
-        return .run { send in
-          // 네트워크 요청 시뮬레이션
-          try await Task.sleep(nanoseconds: 1_000_000_000)
-          await send(.binding(.set(\.isLoading, false)))
+        return .run { [filter = state.selectedFilter] send in
+          do {
+            let all = filter == .all
+            let participating = filter == .participating
+            let notifications = try await gitHubClient.getNotifications(
+              all, participating, nil, nil, 1, 50
+            )
+            await send(.notificationsResponse(.success(notifications)))
+          } catch {
+            await send(.notificationsResponse(.failure(error)))
+          }
         }
         
       case .refreshNotifications:
         state.isLoading = true
-        // 새로운 알림 데이터 로드
-        return .run { send in
-          try await Task.sleep(nanoseconds: 500_000_000)
-          await send(.binding(.set(\.isLoading, false)))
+        return .run { [filter = state.selectedFilter] send in
+          do {
+            let all = filter == .all
+            let participating = filter == .participating
+            let notifications = try await gitHubClient.getNotifications(
+              all, participating, nil, nil, 1, 50
+            )
+            await send(.notificationsResponse(.success(notifications)))
+          } catch {
+            await send(.notificationsResponse(.failure(error)))
+          }
         }
         
       case let .notificationTapped(notification):
@@ -97,43 +117,29 @@ struct NotificationsReducer {
         }
         
       case let .markAsRead(notification):
-        // 특정 알림을 읽음으로 표시
-        state.notifications = state.notifications.map { item in
-          if item.id == notification.id {
-            var updatedItem = item
-            updatedItem = NotificationsModel.NotificationItem(
-              repository: item.repository,
-              title: item.title,
-              subtitle: item.subtitle,
-              type: item.type,
-              timeAgo: item.timeAgo,
-              isUnread: false,
-              avatar: item.avatar
-            )
-            return updatedItem
+        return .run { send in
+          do {
+            try await gitHubClient.markNotificationAsRead(notification.id)
+            await send(.markAsReadResponse(.success(())))
+          } catch {
+            await send(.markAsReadResponse(.failure(error)))
           }
-          return item
         }
-        return .none
         
       case .markAllAsRead:
-        // 모든 알림을 읽음으로 표시
-        state.notifications = state.notifications.map { item in
-          NotificationsModel.NotificationItem(
-            repository: item.repository,
-            title: item.title,
-            subtitle: item.subtitle,
-            type: item.type,
-            timeAgo: item.timeAgo,
-            isUnread: false,
-            avatar: item.avatar
-          )
+        return .run { send in
+          do {
+            let currentTime = ISO8601DateFormatter().string(from: Date())
+            try await gitHubClient.markAllNotificationsAsRead(currentTime)
+            await send(.markAllAsReadResponse(.success(())))
+          } catch {
+            await send(.markAllAsReadResponse(.failure(error)))
+          }
         }
-        return .none
         
       case let .filterChanged(filter):
         state.selectedFilter = filter
-        return .none
+        return .send(.loadNotifications)
         
       case let .repositoryFilterChanged(repository):
         state.selectedRepository = repository
@@ -141,6 +147,42 @@ struct NotificationsReducer {
         
       case .clearAllNotifications:
         state.notifications.removeAll()
+        return .none
+        
+      // API 응답 처리
+      case .notificationsResponse(.success(let githubNotifications)):
+        state.isLoading = false
+        state.notifications = githubNotifications.map { $0.toNotificationItem() }
+        
+        // 리포지토리 필터 업데이트
+        let repositoryNames = Array(Set(githubNotifications.map { $0.repository.fullName }))
+        state.repositoryFilters = repositoryNames.map { repoName in
+          let count = githubNotifications.filter { $0.repository.fullName == repoName }.count
+          return NotificationsModel.RepositoryFilter(name: repoName, count: count)
+        }.sorted { $0.count > $1.count }
+        
+        print("✅ 알림 \(githubNotifications.count)개 로드 완료")
+        return .none
+        
+      case .notificationsResponse(.failure(let error)):
+        state.isLoading = false
+        print("❌ 알림 로드 실패: \(error)")
+        return .none
+        
+      case .markAsReadResponse(.success):
+        // 로컬 상태에서 해당 알림을 읽음으로 표시
+        return .send(.refreshNotifications)
+        
+      case .markAsReadResponse(.failure(let error)):
+        print("❌ 알림 읽음 처리 실패: \(error)")
+        return .none
+        
+      case .markAllAsReadResponse(.success):
+        // 로컬 상태에서 모든 알림을 읽음으로 표시
+        return .send(.refreshNotifications)
+        
+      case .markAllAsReadResponse(.failure(let error)):
+        print("❌ 모든 알림 읽음 처리 실패: \(error)")
         return .none
       }
     }

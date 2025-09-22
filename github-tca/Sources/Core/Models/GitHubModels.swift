@@ -304,3 +304,52 @@ public enum GitHubSearchOrder: String, CaseIterable, Sendable {
     }
   }
 }
+
+/// GitHub 알림 모델
+public struct GitHubNotification: Codable, Equatable, Identifiable, Sendable {
+  public let id: String
+  public let unread: Bool
+  public let reason: String
+  public let updatedAt: String
+  public let lastReadAt: String?
+  public let subject: Subject
+  public let repository: NotificationRepository
+  public let url: String
+  public let subscriptionUrl: String
+  
+  public struct Subject: Codable, Equatable, Sendable {
+    public let title: String
+    public let url: String?
+    public let latestCommentUrl: String?
+    public let type: String
+    
+    enum CodingKeys: String, CodingKey {
+      case title, url, type
+      case latestCommentUrl = "latest_comment_url"
+    }
+  }
+  
+  public struct NotificationRepository: Codable, Equatable, Sendable {
+    public let id: Int
+    public let name: String
+    public let fullName: String
+    public let owner: GitHubUser
+    public let `private`: Bool
+    public let htmlUrl: String
+    public let description: String?
+    
+    enum CodingKeys: String, CodingKey {
+      case id, name, owner, description
+      case fullName = "full_name"
+      case htmlUrl = "html_url"
+      case `private` = "private"
+    }
+  }
+  
+  enum CodingKeys: String, CodingKey {
+    case id, unread, reason, url, subject, repository
+    case updatedAt = "updated_at"
+    case lastReadAt = "last_read_at"
+    case subscriptionUrl = "subscription_url"
+  }
+}
