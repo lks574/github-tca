@@ -8,7 +8,7 @@ struct ProfileReducer {
   @Dependency(\.gitHubAuthClient) var gitHubAuthClient
   
   @ObservableState
-  struct State: Equatable {
+  struct State: Equatable, AuthErrorHandlingState {
     var userProfile: ProfileModel.UserProfile = .default
     var menuItems: [ProfileModel.ProfileMenuItem] = .default
     var repositories: [ProfileModel.RepositoryItem] = .default
@@ -104,8 +104,7 @@ struct ProfileReducer {
         }
         
       case let .signInResponse(.failure(error)):
-        state.isLoading = false
-        state.errorMessage = error.localizedDescription
+        Self.handleAuthError(&state, error: error)
         return .none
         
       case .loadUserProfile:
@@ -126,8 +125,7 @@ struct ProfileReducer {
         }
         
       case let .userProfileResponse(.failure(error)):
-        state.isLoading = false
-        state.errorMessage = error.localizedDescription
+        Self.handleAuthError(&state, error: error)
         return .none
         
       case .loadUserRepositories:
@@ -148,7 +146,7 @@ struct ProfileReducer {
         return .none
         
       case let .userRepositoriesResponse(.failure(error)):
-        state.errorMessage = error.localizedDescription
+        Self.handleError(&state, error: error, loadingKeyPath: \.isLoading, errorKeyPath: \.errorMessage)
         return .none
         
       case let .menuItemTapped(menuType):

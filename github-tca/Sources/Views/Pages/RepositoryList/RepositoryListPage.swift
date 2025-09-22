@@ -203,9 +203,11 @@ enum RepositoryListPage {
         
         // 에러 메시지
         if let errorMessage = errorMessage {
-          ErrorView(
-            message: errorMessage,
-            onRetry: onRefresh
+          GitHubErrorComponents.InlineErrorView(
+            errorMessage: errorMessage,
+            canRetry: true,
+            onRetry: onRefresh,
+            onDismiss: nil
           )
         }
       }
@@ -386,34 +388,6 @@ enum RepositoryListPage {
     }
   }
   
-  // MARK: - Error View
-  private struct ErrorView: View {
-    let message: String
-    let onRetry: () -> Void
-    
-    var body: some View {
-      VStack(spacing: GitHubSpacing.md) {
-        Image(systemName: "exclamationmark.triangle")
-          .font(.system(size: 40))
-          .foregroundColor(.githubRed)
-        
-        Text(message)
-          .font(.githubCallout)
-          .foregroundColor(.githubSecondaryText)
-          .multilineTextAlignment(.center)
-        
-        Button("다시 시도", action: onRetry)
-          .font(.githubCallout)
-          .foregroundColor(.white)
-          .padding(.horizontal, GitHubSpacing.lg)
-          .padding(.vertical, GitHubSpacing.sm)
-          .background(Color.githubBlue)
-          .cornerRadius(GitHubCornerRadius.medium)
-      }
-      .frame(maxWidth: .infinity)
-      .padding(.vertical, GitHubSpacing.xl)
-    }
-  }
 }
 
 // MARK: - Repository Filter

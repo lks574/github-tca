@@ -8,7 +8,7 @@ struct RepositoryListReducer {
   @Dependency(\.gitHubClient) var gitHubClient
 
   @ObservableState
-  struct State: Equatable {
+  struct State: Equatable, PaginationErrorHandlingState {
     var repositories: [ProfileModel.RepositoryItem] = []
     var searchQuery: String = ""
     var selectedFilter: RepositoryFilter = .all
@@ -126,8 +126,7 @@ struct RepositoryListReducer {
         return .none
         
       case .searchResponse(.failure(let error)):
-        state.isSearching = false
-        state.errorMessage = error.localizedDescription
+        Self.handleError(&state, error: error, loadingKeyPath: \.isSearching, errorKeyPath: \.errorMessage)
         return .none
         
       case .filterChanged(let filter):
@@ -181,8 +180,7 @@ struct RepositoryListReducer {
         return .none
         
       case .loadMoreResponse(.failure(let error)):
-        state.isLoadingMore = false
-        state.errorMessage = error.localizedDescription
+        Self.handlePaginationError(&state, error: error)
         return .none
         
       case .repositoriesResponse(.success(let repositories)):
@@ -196,14 +194,7 @@ struct RepositoryListReducer {
         return .none
         
       case .repositoriesResponse(.failure(let error)):
-        state.isLoading = false
-        print("❌ Repository 로드 실패: \(error)")
-        if let gitHubError = error as? GitHubError {
-          print("❌ GitHubError: \(gitHubError)")
-          state.errorMessage = gitHubError.localizedDescription
-        } else {
-          state.errorMessage = error.localizedDescription
-        }
+        Self.handleError(&state, error: error)
         return .none
       }
     }
