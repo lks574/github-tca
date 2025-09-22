@@ -12,20 +12,11 @@ struct NotificationsReducer {
     var repositoryFilters: [NotificationsModel.RepositoryFilter] = .default
     var selectedFilter: NotificationsModel.FilterType = .all
     var selectedRepository: String? = nil
-    var searchText = ""
     var isLoading = false
     
     // 필터링된 알림 목록
     var filteredNotifications: [NotificationsModel.NotificationItem] {
       var filtered = notifications
-      
-      // 검색 텍스트 필터링
-      if !searchText.isEmpty {
-        filtered = filtered.filter { notification in
-          notification.title.localizedCaseInsensitiveContains(searchText) ||
-          notification.repository.localizedCaseInsensitiveContains(searchText)
-        }
-      }
       
       // 선택된 리포지토리 필터링
       if let selectedRepo = selectedRepository {
@@ -64,6 +55,7 @@ struct NotificationsReducer {
     case filterChanged(NotificationsModel.FilterType)
     case repositoryFilterChanged(String?)
     case clearAllNotifications
+    case configureNotificationsTapped // 구성 버튼 액션
     
     // API 응답 액션들
     case notificationsResponse(Result<[GitHubNotification], Error>)
@@ -147,6 +139,11 @@ struct NotificationsReducer {
         
       case .clearAllNotifications:
         state.notifications.removeAll()
+        return .none
+        
+      case .configureNotificationsTapped:
+        // TODO: 알림 설정 화면으로 이동 또는 시스템 설정으로 이동
+        print("🔧 알림 구성 버튼 탭됨")
         return .none
         
       // API 응답 처리

@@ -4,21 +4,62 @@ import ComposableArchitecture
 enum NotificationsPage {
   struct RootView: View {
     @Bindable var store: StoreOf<NotificationsReducer>
+    @State private var showPromptSection: Bool = true
     
     var body: some View {
-      VStack(spacing: 0) {
-        // 필터 섹션
-        FilterSection(store: store)
-        
-        // 알림 목록
-        if store.filteredNotifications.isEmpty {
-          EmptyStateView(selectedFilter: store.selectedFilter)
-        } else {
-          NotificationsList(store: store)
+      // 단일 ScrollView로 모든 컨텐츠 포함
+      ScrollViewReader { proxy in
+        ScrollView {
+          VStack(spacing: 0) {
+            // 스크롤 감지를 위한 투명 GeometryReader
+            GeometryReader { geometry in
+              Color.clear
+                .onChange(of: geometry.frame(in: .global).minY) { _, newValue in
+                  withAnimation(.easeInOut(duration: 0.25)) {
+                    showPromptSection = newValue > -30 // 30px 스크롤하면 숨김
+                  }
+                }
+            }
+            .frame(height: 0)
+            
+            // 필터 섹션 (스크롤됨)
+            FilterSection(store: store)
+            
+            // 안내 메시지 (스크롤 시 숨김)
+            if showPromptSection {
+              NotificationPromptSection {
+                store.send(.configureNotificationsTapped)
+              }
+              .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+            
+            // 알림 목록 또는 빈 상태
+            if store.filteredNotifications.isEmpty {
+              EmptyStateView(selectedFilter: store.selectedFilter)
+            } else {
+              LazyVStack(spacing: 0) {
+                ForEach(store.filteredNotifications) { notification in
+                  NotificationRow(
+                    notification: notification,
+                    onTap: {
+                      store.send(.notificationTapped(notification))
+                    }
+                  )
+                  
+                  Divider()
+                    .background(Color.githubSeparator)
+                }
+              }
+            }
+          }
+        }
+        .refreshable {
+          store.send(.refreshNotifications)
         }
       }
       .background(Color.githubBackground)
       .navigationTitle("받은 편지함")
+      .navigationBarTitleDisplayMode(.large)
       .githubNavigationStyle()
       .toolbar {
         ToolbarItemGroup(placement: .navigationBarTrailing) {
@@ -33,9 +74,55 @@ enum NotificationsPage {
       .onAppear {
         store.send(.loadNotifications)
       }
-      .refreshable {
-        store.send(.refreshNotifications)
+    }
+  }
+  
+  // MARK: - Notification Prompt Section
+  private struct NotificationPromptSection: View {
+    let onConfigureTapped: () -> Void
+    
+    var body: some View {
+      HStack(spacing: GitHubSpacing.md) {
+        // 빨간 알림 아이콘
+        ZStack {
+          Circle()
+            .fill(Color.red)
+            .frame(width: 48, height: 48)
+          
+          Image(systemName: "bell.fill")
+            .foregroundColor(.white)
+            .font(.system(size: 20))
+        }
+        
+        // 메시지 영역
+        VStack(alignment: .leading, spacing: GitHubSpacing.xxs) {
+          Text("중요한 사항을 놓치지 마세요.")
+            .font(.githubHeadline)
+            .foregroundColor(.githubPrimaryText)
+          
+          Text("푸시 알림, 작업 시간 및 삶착 알기 작업으로 알림 환경을 사용자 지정합니다.")
+            .font(.githubCallout)
+            .foregroundColor(.githubSecondaryText)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        
+        Spacer()
+        
+        // 구성 버튼
+        Button("구성") {
+          onConfigureTapped()
+        }
+        .font(.githubCallout)
+        .fontWeight(.medium)
+        .foregroundColor(.white)
+        .padding(.horizontal, GitHubSpacing.md)
+        .padding(.vertical, GitHubSpacing.sm)
+        .background(Color.githubBlue)
+        .cornerRadius(GitHubCornerRadius.button)
       }
+      .padding(.horizontal, GitHubSpacing.screenPadding)
+      .padding(.vertical, GitHubSpacing.md)
+      .background(Color.githubBackground)
     }
   }
   
@@ -44,56 +131,47 @@ enum NotificationsPage {
     @Bindable var store: StoreOf<NotificationsReducer>
     
     var body: some View {
-      VStack(spacing: GitHubSpacing.md) {
-        // 검색바
-        GitHubSearchBar(
-          text: $store.searchText,
-          placeholder: "알림 검색"
-        )
-        .padding(.horizontal, GitHubSpacing.screenPadding)
-        
-        // 필터 버튼들
-        ScrollView(.horizontal, showsIndicators: false) {
-          HStack(spacing: GitHubSpacing.sm) {
-            ForEach(NotificationsModel.FilterType.allCases, id: \.rawValue) { filter in
-              FilterButton(
-                title: filter.title,
-                isSelected: store.selectedFilter == filter,
-                count: filter == .unread ? store.unreadCount : nil
-              ) {
-                store.send(.filterChanged(filter))
-              }
-            }
-            
-            // 리포지토리 필터
-            Menu {
-              Button("모든 리포지토리") {
-                store.send(.repositoryFilterChanged(nil))
-              }
-              
-              ForEach(store.repositoryFilters) { repo in
-                Button("\(repo.name) (\(repo.count))") {
-                  store.send(.repositoryFilterChanged(repo.name))
-                }
-              }
-            } label: {
-              HStack(spacing: GitHubSpacing.xs) {
-                Text(store.selectedRepository ?? "리포지토리")
-                Image(systemName: "chevron.down")
-                  .font(.system(size: GitHubIconSize.small))
-              }
-              .font(.githubSubheadline)
-              .foregroundColor(.githubSecondaryText)
-              .padding(.horizontal, GitHubSpacing.md)
-              .padding(.vertical, GitHubSpacing.sm)
-              .background(
-                RoundedRectangle(cornerRadius: GitHubCornerRadius.medium)
-                  .stroke(Color.githubBorder, lineWidth: 1)
-              )
+      // 필터 버튼들 (검색바 제거)
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: GitHubSpacing.sm) {
+          ForEach(NotificationsModel.FilterType.allCases, id: \.rawValue) { filter in
+            FilterButton(
+              title: filter.title,
+              isSelected: store.selectedFilter == filter,
+              count: filter == .unread ? store.unreadCount : nil
+            ) {
+              store.send(.filterChanged(filter))
             }
           }
-          .padding(.horizontal, GitHubSpacing.screenPadding)
+          
+          // 리포지토리 필터
+          Menu {
+            Button("모든 리포지토리") {
+              store.send(.repositoryFilterChanged(nil))
+            }
+            
+            ForEach(store.repositoryFilters) { repo in
+              Button("\(repo.name) (\(repo.count))") {
+                store.send(.repositoryFilterChanged(repo.name))
+              }
+            }
+          } label: {
+            HStack(spacing: GitHubSpacing.xs) {
+              Text(store.selectedRepository ?? "리포지토리")
+              Image(systemName: "chevron.down")
+                .font(.system(size: GitHubIconSize.small))
+            }
+            .font(.githubSubheadline)
+            .foregroundColor(.githubSecondaryText)
+            .padding(.horizontal, GitHubSpacing.md)
+            .padding(.vertical, GitHubSpacing.sm)
+            .background(
+              RoundedRectangle(cornerRadius: GitHubCornerRadius.medium)
+                .stroke(Color.githubBorder, lineWidth: 1)
+            )
+          }
         }
+        .padding(.horizontal, GitHubSpacing.screenPadding)
       }
       .padding(.vertical, GitHubSpacing.sm)
       .background(Color.githubBackground)
@@ -134,29 +212,6 @@ enum NotificationsPage {
         )
       }
       .buttonStyle(PlainButtonStyle())
-    }
-  }
-  
-  // MARK: - Notifications List
-  private struct NotificationsList: View {
-    @Bindable var store: StoreOf<NotificationsReducer>
-    
-    var body: some View {
-      ScrollView {
-        LazyVStack(spacing: 0) {
-          ForEach(store.filteredNotifications) { notification in
-            NotificationRow(
-              notification: notification,
-              onTap: {
-                store.send(.notificationTapped(notification))
-              }
-            )
-            
-            Divider()
-              .background(Color.githubSeparator)
-          }
-        }
-      }
     }
   }
   
