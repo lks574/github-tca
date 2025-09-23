@@ -34,6 +34,7 @@ let project = Project(
       dependencies: [
         .package(product: "ComposableArchitecture"),
         .package(product: "Pulse"),
+        .package(product: "PulseUI"),
       ],
       environmentVariables: [
         "GITHUB_CLIENT_ID" : "Ov23li3PdoDXMFSa3RHk",
