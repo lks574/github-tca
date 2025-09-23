@@ -109,7 +109,7 @@ public actor GitHubService: GitHubServiceProtocol {
     apiVersion: String = "2022-11-28",
     userAgent: String = "GitHub-TCA-iOS-App"
   ) {
-    var configuration = URLSessionConfiguration.default
+    let configuration = URLSessionConfiguration.default
     configuration.timeoutIntervalForRequest = 30
     configuration.timeoutIntervalForResource = 60
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData

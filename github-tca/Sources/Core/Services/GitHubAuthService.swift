@@ -122,7 +122,7 @@ public actor GitHubAuthService: GitHubAuthServiceProtocol {
   }
 
   public func refreshUserInfo() async throws -> GitHubUser {
-    guard let token = try await keychain.getToken() else {
+    guard let _ = try await keychain.getToken() else {
       throw GitHubError.authenticationRequired
     }
 

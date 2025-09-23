@@ -4,7 +4,7 @@ import Foundation
 public enum ProfileModel {
 
   // MARK: - User Profile
-  public struct UserProfile: Equatable, Identifiable {
+  public struct UserProfile: Equatable, Identifiable, Sendable {
     public let id = UUID()
     let username: String
     let displayName: String
@@ -23,7 +23,7 @@ public enum ProfileModel {
   }
   
   // MARK: - Profile Menu Item
-  public struct ProfileMenuItem: Equatable, Identifiable {
+  public struct ProfileMenuItem: Equatable, Identifiable, Sendable {
     public let id = UUID()
     let icon: String
     let iconColor: Color
@@ -33,7 +33,7 @@ public enum ProfileModel {
     let type: MenuType
     let hasChevron: Bool
     
-    enum MenuType: String, CaseIterable {
+    enum MenuType: String, CaseIterable, Sendable {
       case repositories = "repositories"
       case starred = "starred"
       case organizations = "organizations"
@@ -48,7 +48,7 @@ public enum ProfileModel {
   }
   
   // MARK: - Repository Item
-  public struct RepositoryItem: Equatable, Identifiable {
+  public struct RepositoryItem: Equatable, Identifiable, Sendable {
     public let id: Int
     let name: String
     let fullName: String
@@ -62,7 +62,7 @@ public enum ProfileModel {
   }
   
   // MARK: - Achievement
-  public struct Achievement: Equatable, Identifiable {
+  public struct Achievement: Equatable, Identifiable, Sendable {
     public let id = UUID()
     let title: String
     let description: String

@@ -7,7 +7,7 @@ struct RepositoryDetailReducer {
   @Dependency(\.gitHubAuthClient) var gitHubAuthClient
   
   @ObservableState
-  struct State: Equatable {
+  struct State: Equatable, ErrorHandlingState {
     var repository: ProfileModel.RepositoryItem
     var isLoading = false
     var errorMessage: String?
@@ -32,15 +32,11 @@ struct RepositoryDetailReducer {
     case onAppear
     case refreshRepository
     case loadReadme
-    case readmeLoaded(Result<String, Error>)
     
     // 리포지토리 액션들
     case starTapped
-    case starResponse(Result<Void, Error>)
     case watchTapped
-    case watchResponse(Result<Void, Error>)
     case forkTapped
-    case forkResponse(Result<GitHubRepository, Error>)
     case shareTapped
     case openInBrowser
     case copyURL
@@ -64,117 +60,162 @@ struct RepositoryDetailReducer {
         return .send(.loadReadme)
         
       case .refreshRepository:
-        state.isLoading = true
-        state.errorMessage = nil
-        return .run { [repository = state.repository] send in
-          try await Task.sleep(nanoseconds: 1_000_000_000) // 1초 딜레이
-          await send(.binding(.set(\.isLoading, false)))
+        Self.startLoading(&state)
+        return .run { [repository = state.repository, gitHubClient] send in
+          do {
+            // fullName에서 owner/repo 분리 (예: "lks574/ios_practice" -> owner: "lks574", repo: "ios_practice")
+            let components = repository.fullName.split(separator: "/")
+            guard components.count == 2 else {
+              throw GitHubError.invalidQuery
+            }
+            
+            let owner = String(components[0])
+            let repo = String(components[1])
+            
+            // 리포지토리 상세 정보 다시 불러오기
+            let freshRepository = try await gitHubClient.getRepository(
+              owner: owner,
+              repo: repo
+            )
+            
+            await send(.binding(.set(\.isLoading, false)))
+            await send(.binding(.set(\.errorMessage, nil)))
+            
+            // 기존 RepositoryItem을 새로운 데이터로 업데이트
+            await send(.binding(.set(\.repository, freshRepository.toProfileRepositoryItem())))
+            
+            // README도 다시 로드
+            await send(.loadReadme)
+          } catch {
+            await send(.binding(.set(\.isLoading, false)))
+            
+            // GitHubError 우선 처리
+            let errorMessage: String
+            if let gitHubError = error as? GitHubError {
+              errorMessage = gitHubError.localizedDescription
+              print("❌ GitHubError: \(gitHubError.localizedDescription)")
+            } else {
+              errorMessage = error.localizedDescription
+              print("❌ 일반 에러: \(error.localizedDescription)")
+            }
+            
+            await send(.binding(.set(\.errorMessage, errorMessage)))
+          }
         }
         
       case .loadReadme:
         state.isLoadingReadme = true
         state.readmeError = nil
         return .run { [repository = state.repository] send in
-          await send(.readmeLoaded(
-            Result {
-              // 실제 구현에서는 GitHub API로 README 가져오기
-              try await Task.sleep(nanoseconds: 1_500_000_000)
-              return """
-              # \(repository.name)
-              
-              \(repository.description ?? "이 리포지토리에 대한 설명이 없습니다.")
-              
-              ## 설치
-              
-              ```bash
-              git clone https://github.com/\(repository.fullName).git
-              cd \(repository.name)
-              ```
-              
-              ## 사용법
-              
-              이 프로젝트는 \(repository.language ?? "다양한 언어")로 작성되었습니다.
-              
-              ## 기여하기
-              
-              Issues와 Pull Requests를 환영합니다!
-              
-              ## 라이선스
-              
-              이 프로젝트는 오픈소스 라이선스를 따릅니다.
-              """
-            }
-          ))
+          do {
+            // 실제 GitHub API로 README 가져오기 (임시로 Mock 데이터 사용)
+            try await Task.sleep(nanoseconds: 1_500_000_000)
+            let content = """
+            # \(repository.name)
+            
+            \(repository.description ?? "이 리포지토리에 대한 설명이 없습니다.")
+            
+            ## 설치
+            
+            ```bash
+            git clone https://github.com/\(repository.fullName).git
+            cd \(repository.name)
+            ```
+            
+            ## 사용법
+            
+            이 프로젝트는 \(repository.language ?? "다양한 언어")로 작성되었습니다.
+            
+            ## 기여하기
+            
+            Issues와 Pull Requests를 환영합니다!
+            
+            ## 라이선스
+            
+            이 프로젝트는 오픈소스 라이선스를 따릅니다.
+            """
+            
+            await send(.binding(.set(\.isLoadingReadme, false)))
+            await send(.binding(.set(\.readmeContent, content)))
+          } catch {
+            await send(.binding(.set(\.isLoadingReadme, false)))
+            await send(.binding(.set(\.readmeError, "README를 불러올 수 없습니다: \(error.localizedDescription)")))
+          }
         }
-        
-      case let .readmeLoaded(.success(content)):
-        state.isLoadingReadme = false
-        state.readmeContent = content
-        return .none
-        
-      case let .readmeLoaded(.failure(error)):
-        state.isLoadingReadme = false
-        state.readmeError = "README를 불러올 수 없습니다: \(error.localizedDescription)"
-        return .none
         
       case .starTapped:
         state.isStarred.toggle()
         let isStarred = state.isStarred
         return .run { [repository = state.repository] send in
-          await send(.starResponse(
-            Result {
-              try await Task.sleep(nanoseconds: 500_000_000)
-              print("\(repository.name) \(isStarred ? "스타 추가" : "스타 제거")")
+          do {
+            try await Task.sleep(nanoseconds: 500_000_000)
+            print("\(repository.name) \(isStarred ? "스타 추가" : "스타 제거")")
+            // 성공 시 추가 작업 없음
+          } catch {
+            // 실패 시 상태 되돌리기
+            await send(.binding(.set(\.isStarred, !isStarred)))
+            
+            // GitHubError 우선 처리
+            let errorMessage: String
+            if let gitHubError = error as? GitHubError {
+              errorMessage = gitHubError.localizedDescription
+              print("❌ 스타 처리 GitHubError: \(gitHubError.localizedDescription)")
+            } else {
+              errorMessage = error.localizedDescription
+              print("❌ 스타 처리 일반 에러: \(error.localizedDescription)")
             }
-          ))
+            
+            await send(.binding(.set(\.errorMessage, errorMessage)))
+          }
         }
-        
-      case .starResponse(.success):
-        return .none
-        
-      case let .starResponse(.failure(error)):
-        state.isStarred.toggle() // 실패 시 되돌리기
-        state.errorMessage = "스타 처리 실패: \(error.localizedDescription)"
-        return .none
         
       case .watchTapped:
         state.isWatching.toggle()
         let isWatching = state.isWatching
         return .run { [repository = state.repository] send in
-          await send(.watchResponse(
-            Result {
-              try await Task.sleep(nanoseconds: 500_000_000)
-              print("\(repository.name) \(isWatching ? "구독 시작" : "구독 취소")")
+          do {
+            try await Task.sleep(nanoseconds: 500_000_000)
+            print("\(repository.name) \(isWatching ? "구독 시작" : "구독 취소")")
+            // 성공 시 추가 작업 없음
+          } catch {
+            // 실패 시 상태 되돌리기
+            await send(.binding(.set(\.isWatching, !isWatching)))
+            
+            // GitHubError 우선 처리
+            let errorMessage: String
+            if let gitHubError = error as? GitHubError {
+              errorMessage = gitHubError.localizedDescription
+              print("❌ 구독 처리 GitHubError: \(gitHubError.localizedDescription)")
+            } else {
+              errorMessage = error.localizedDescription
+              print("❌ 구독 처리 일반 에러: \(error.localizedDescription)")
             }
-          ))
+            
+            await send(.binding(.set(\.errorMessage, errorMessage)))
+          }
         }
-        
-      case .watchResponse(.success):
-        return .none
-        
-      case let .watchResponse(.failure(error)):
-        state.isWatching.toggle() // 실패 시 되돌리기
-        state.errorMessage = "구독 처리 실패: \(error.localizedDescription)"
-        return .none
         
       case .forkTapped:
         return .run { [repository = state.repository] send in
-          await send(.forkResponse(
-            Result {
-              try await Task.sleep(nanoseconds: 1_000_000_000)
-              print("\(repository.name) 포크 생성")
-              // 실제로는 포크된 리포지토리 정보를 반환
-              throw NSError(domain: "NotImplemented", code: 0, userInfo: [NSLocalizedDescriptionKey: "포크 기능은 아직 구현되지 않았습니다."])
+          do {
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+            print("\(repository.name) 포크 생성")
+            // 실제로는 포크된 리포지토리 정보를 반환
+            throw NSError(domain: "NotImplemented", code: 0, userInfo: [NSLocalizedDescriptionKey: "포크 기능은 아직 구현되지 않았습니다."])
+          } catch {
+            // GitHubError 우선 처리
+            let errorMessage: String
+            if let gitHubError = error as? GitHubError {
+              errorMessage = gitHubError.localizedDescription
+              print("❌ 포크 처리 GitHubError: \(gitHubError.localizedDescription)")
+            } else {
+              errorMessage = error.localizedDescription
+              print("❌ 포크 처리 일반 에러: \(error.localizedDescription)")
             }
-          ))
+            
+            await send(.binding(.set(\.errorMessage, errorMessage)))
+          }
         }
-        
-      case .forkResponse(.success):
-        return .none
-        
-      case let .forkResponse(.failure(error)):
-        state.errorMessage = "포크 실패: \(error.localizedDescription)"
-        return .none
         
       case .shareTapped:
         print("공유 시트 표시")
