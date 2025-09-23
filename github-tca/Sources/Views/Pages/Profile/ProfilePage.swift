@@ -7,7 +7,10 @@ enum ProfilePage {
     
     var body: some View {
       Group {
-        if store.isAuthenticated {
+        if store.isInitialLoading {
+          // 초기 로딩 화면
+          initialLoadingView
+        } else if store.isAuthenticated {
           // 인증된 사용자 프로필
           authenticatedProfileView
         } else {
@@ -43,6 +46,46 @@ enum ProfilePage {
           Text(errorMessage)
         }
       }
+    }
+    
+    // MARK: - Initial Loading View
+    private var initialLoadingView: some View {
+      VStack(spacing: GitHubSpacing.xl) {
+        Spacer()
+        
+        VStack(spacing: GitHubSpacing.lg) {
+          // GitHub 로고 애니메이션
+          Image(systemName: "octagon.fill")
+            .font(.system(size: 60))
+            .foregroundColor(.githubBlue)
+            .scaleEffect(1.0)
+            .animation(
+              Animation.easeInOut(duration: 1.0)
+                .repeatForever(autoreverses: true),
+              value: store.isInitialLoading
+            )
+          
+          VStack(spacing: GitHubSpacing.sm) {
+            Text("프로필 로딩 중")
+              .font(.githubTitle2)
+              .fontWeight(.semibold)
+              .foregroundColor(.githubPrimaryText)
+            
+            Text("잠시만 기다려주세요...")
+              .font(.githubSubheadline)
+              .foregroundColor(.githubSecondaryText)
+          }
+          
+          // 진행률 인디케이터
+          ProgressView()
+            .progressViewStyle(CircularProgressViewStyle(tint: .githubBlue))
+            .scaleEffect(1.2)
+        }
+        
+        Spacer()
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .background(Color.githubBackground)
     }
     
     // MARK: - Authenticated Profile View

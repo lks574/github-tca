@@ -13,6 +13,7 @@ struct ProfileReducer {
     var menuItems: [ProfileModel.ProfileMenuItem] = .default
     var repositories: [ProfileModel.RepositoryItem] = .default
     var isLoading = false
+    var isInitialLoading = true  // 초기 로딩 상태 추가
     var showingSignOutAlert = false
     var showingEditProfile = false
     var isAuthenticated = false
@@ -71,11 +72,13 @@ struct ProfileReducer {
             } else {
               await send(.binding(.set(\.isAuthenticated, false)))
               await send(.binding(.set(\.isLoading, false)))
+              await send(.binding(.set(\.isInitialLoading, false)))
             }
           } catch {
             // 토큰 확인 실패 시 로그아웃 상태로 처리
             await send(.binding(.set(\.isAuthenticated, false)))
             await send(.binding(.set(\.isLoading, false)))
+            await send(.binding(.set(\.isInitialLoading, false)))
             await send(.binding(.set(\.errorMessage, "인증 상태 확인 실패")))
           }
         }
@@ -104,6 +107,7 @@ struct ProfileReducer {
         }
         
       case let .signInResponse(.failure(error)):
+        state.isInitialLoading = false  // 로그인 실패 시에도 초기 로딩 완료
         Self.handleAuthError(&state, error: error)
         return .none
         
@@ -143,9 +147,11 @@ struct ProfileReducer {
         
       case let .userRepositoriesResponse(.success(repos)):
         state.repositories = repos.map { $0.toProfileRepositoryItem() }
+        state.isInitialLoading = false  // 초기 로딩 완료
         return .none
         
       case let .userRepositoriesResponse(.failure(error)):
+        state.isInitialLoading = false  // 에러 시에도 초기 로딩 완료
         Self.handleError(&state, error: error, loadingKeyPath: \.isLoading, errorKeyPath: \.errorMessage)
         return .none
         
