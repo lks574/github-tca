@@ -1,5 +1,6 @@
 import SwiftUI
 import ComposableArchitecture
+import Pulse
 
 @main
 struct GithubTcaApp: App {
@@ -23,6 +24,9 @@ struct GithubTcaApp: App {
         }
         .onOpenURL { url in
           handleIncomingURL(url)
+        }
+        .onShake {
+
         }
     }
   }

@@ -4,6 +4,7 @@ let project = Project(
   name: "github-tca",
   packages: [
     .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.22.1"),
+    .package(url: "https://github.com/kean/Pulse", from: "5.1.4"),
   ],
   targets: [
     .target(
@@ -31,7 +32,8 @@ let project = Project(
         "github-tca/Resources",
       ],
       dependencies: [
-        .package(product: "ComposableArchitecture")
+        .package(product: "ComposableArchitecture"),
+        .package(product: "Pulse"),
       ],
       environmentVariables: [
         "GITHUB_CLIENT_ID" : "Ov23li3PdoDXMFSa3RHk",
