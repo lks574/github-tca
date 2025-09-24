@@ -110,7 +110,6 @@ public actor GitHubService: GitHubServiceProtocol {
     userAgent: String = "GitHub-TCA-iOS-App"
   ) {
     self.authClient = authClient
-    // Pulse 자동 등록이 적용되도록 URLSession.shared 사용
     self.session = session
     self.baseURL = baseURL
     self.apiVersion = apiVersion

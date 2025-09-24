@@ -35,7 +35,7 @@ struct ProfileReducer {
     case loadUserProfile
     case userProfileResponse(Result<GitHubUser, Error>)
     case loadUserRepositories
-    case userRepositoriesResponse(Result<[GitHubRepository], Error>)
+    case userRepositoriesResponse(Result<[ProfileModel.RepositoryItem], Error>)
     case menuItemTapped(ProfileModel.ProfileMenuItem.MenuType)
     case editProfileTapped
     case shareProfileTapped
@@ -133,20 +133,18 @@ struct ProfileReducer {
         return .none
         
       case .loadUserRepositories:
-        return .run { [gitHubClient, username = state.userProfile.username] send in
+        return .run { [gitHubClient] send in
           await send(.userRepositoriesResponse(
             Result {
-              try await gitHubClient.getUserRepositories(
-                username: username,
-                page: 1,
-                perPage: 10
+              try await gitHubClient.getCurrentUserRepositories(
+                1, 10, "owner", "updated"
               )
             }
           ))
         }
         
       case let .userRepositoriesResponse(.success(repos)):
-        state.repositories = repos.map { $0.toProfileRepositoryItem() }
+        state.repositories = repos
         state.isInitialLoading = false  // 초기 로딩 완료
         return .none
         
