@@ -1,18 +1,13 @@
 import SwiftUI
 import ComposableArchitecture
-import Pulse
-import PulseUI
 
 @main
 struct GithubTcaApp: App {
   
   @State private var store: StoreOf<AppReducer>
-  @State private var isPulsePresented = false
+  @State private var isNetworkLoggerPresented = false
   
   init() {
-    // Pulse 네트워크 로깅 설정 (최신 버전)
-    URLSessionProxyDelegate.enableAutomaticRegistration()
-    
     let store = Store(initialState: AppReducer.State()) {
       AppReducer()
     }
@@ -31,22 +26,11 @@ struct GithubTcaApp: App {
           handleIncomingURL(url)
         }
         .onShake {
-          // 기기 흔들기로 Pulse 네트워크 디버거 표시
-          isPulsePresented = true
+          // 기기 흔들기로 커스텀 네트워크 디버거 표시
+          isNetworkLoggerPresented = true
         }
-        .sheet(isPresented: $isPulsePresented) {
-          NavigationView {
-            ConsoleView()
-              .navigationTitle("네트워크 디버거")
-              .navigationBarTitleDisplayMode(.inline)
-              .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                  Button("완료") {
-                    isPulsePresented = false
-                  }
-                }
-              }
-          }
+        .sheet(isPresented: $isNetworkLoggerPresented) {
+          NetworkLoggerView()
         }
     }
   }

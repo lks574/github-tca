@@ -109,13 +109,9 @@ public actor GitHubService: GitHubServiceProtocol {
     apiVersion: String = "2022-11-28",
     userAgent: String = "GitHub-TCA-iOS-App"
   ) {
-    let configuration = URLSessionConfiguration.default
-    configuration.timeoutIntervalForRequest = 30
-    configuration.timeoutIntervalForResource = 60
-    configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-    
     self.authClient = authClient
-    self.session = URLSession(configuration: configuration)
+    // Pulse 자동 등록이 적용되도록 URLSession.shared 사용
+    self.session = session
     self.baseURL = baseURL
     self.apiVersion = apiVersion
     self.userAgent = userAgent
@@ -223,20 +219,50 @@ public actor GitHubService: GitHubServiceProtocol {
     request.setValue(apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
     request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
     
+    // 🔍 네트워크 로깅 시작
+    let startTime = Date()
+    let requestHeaders = request.allHTTPHeaderFields ?? [:]
+    let log = await NetworkLogger.shared.logRequest(
+      method: request.httpMethod ?? "GET",
+      url: url,
+      headers: requestHeaders,
+      body: request.httpBody
+    )
+    
     // 네트워크 요청 수행
     let (data, response): (Data, URLResponse)
     do {
       (data, response) = try await session.data(for: request)
     } catch let urlError as URLError {
+      // 🔍 에러 로깅
+      await NetworkLogger.shared.updateLogWithError(logId: log.id, error: urlError)
       throw GitHubError.from(urlError: urlError)
     } catch {
+      // 🔍 에러 로깅
+      await NetworkLogger.shared.updateLogWithError(logId: log.id, error: error)
       throw GitHubError.networkError(error.localizedDescription)
     }
     
     // HTTP 응답 검증
     guard let httpResponse = response as? HTTPURLResponse else {
+      await NetworkLogger.shared.updateLogWithError(logId: log.id, error: GitHubError.invalidResponse)
       throw GitHubError.invalidResponse
     }
+    
+    // 🔍 응답 시간 계산
+    let responseTime = Date().timeIntervalSince(startTime)
+    let responseHeaders: [String: String] = httpResponse.allHeaderFields.reduce(into: [:]) { dict, element in
+      dict["\(element.key)"] = "\(element.value)"
+    }
+    
+    // 🔍 응답 로깅 (상태 코드와 관계없이)
+    await NetworkLogger.shared.updateLogWithResponse(
+      logId: log.id,
+      statusCode: httpResponse.statusCode,
+      responseTime: responseTime,
+      responseHeaders: responseHeaders,
+      responseBody: data
+    )
     
     // 상태 코드 확인
     guard 200...299 ~= httpResponse.statusCode else {
